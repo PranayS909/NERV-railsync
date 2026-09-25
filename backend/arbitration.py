@@ -7,14 +7,15 @@ block boxes in time-distance space, then computes the 3-option
 Trade-Off Arbitration Matrix used by the Section Controller.
 """
 
-from backend.data_generator import load_trains
-from backend.clustering import cluster_demands, load_demands
-from backend.optimizer import optimize_schedule, _train_time_at_km, _min_to_hhmm
+from data_generator import load_trains
+from clustering import cluster_demands, load_demands
+from optimizer import optimize_schedule, _train_time_at_km, _min_to_hhmm
 
 # in-memory session state for injected delays / applied arbitrations (MVP: single session)
 _SESSION = {
     "injected_delays": {},   # train_no -> minutes
     "applied_arbitrations": [],  # log of {train_no, corridor_id, option, applied_at}
+    "deferred_corridors": set(),  # corridor_ids deferred via Option 2
 }
 
 
@@ -23,15 +24,27 @@ def inject_delay(train_no, delay_minutes):
     return detect_conflicts()
 
 
+def get_session_state():
+    """Return a snapshot of current session state for use by the optimizer."""
+    return {
+        "injected_delays": dict(_SESSION["injected_delays"]),
+        "excluded_corridor_ids": list(_SESSION["deferred_corridors"]),
+    }
+
+
 def reset_session():
     _SESSION["injected_delays"] = {}
     _SESSION["applied_arbitrations"] = []
+    _SESSION["deferred_corridors"] = set()
 
 
 def detect_conflicts(schedule_result=None):
     """Re-solve (or reuse) the schedule with current injected delays and report
     any train/corridor collisions in time-distance space."""
-    schedule_result = schedule_result or optimize_schedule(injected_delays=_SESSION["injected_delays"])
+    schedule_result = schedule_result or optimize_schedule(
+        injected_delays=_SESSION["injected_delays"],
+        excluded_corridor_ids=list(_SESSION["deferred_corridors"]),
+    )
     trains = {t["train_no"]: t for t in load_trains()}
 
     conflicts = []
@@ -134,8 +147,8 @@ def apply_arbitration(train_no, corridor_id, option):
         # detain train: model as an injected delay absorbed at a loop (does not shift corridor)
         inject_delay(train_no, 12)
     elif option == 2:
-        # defer maintenance: crude MVP handling -- flag corridor for reschedule note
-        pass
+        # defer maintenance: add corridor to deferred set so optimizer excludes it next run
+        _SESSION["deferred_corridors"].add(corridor_id)
     elif option == 3:
         # compress + TSR: small residual delay to train, corridor unaffected in this MVP model
         inject_delay(train_no, 6)

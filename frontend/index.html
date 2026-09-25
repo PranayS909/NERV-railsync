@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RailSync-AI — Block Planning Console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0e1218;
+    --panel:#171d26;
+    --panel-2:#1c2430;
+    --border:#262f3b;
+    --text:#e4e8ee;
+    --text-dim:#8b96a5;
+    --text-faint:#5a6472;
+    --amber:#e8a33d;
+    --teal:#4fb8a8;
+    --red:#d1554a;
+    --blue:#5b8dd6;
+    --green:#6fbf73;
+    --slate:#8791a1;
+    --font-ui:'Inter',system-ui,-apple-system,sans-serif;
+    --font-mono:'JetBrains Mono',ui-monospace,'SF Mono',Menlo,monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:var(--font-ui);}
+  body{min-height:100vh;font-size:14px;line-height:1.5;}
+  ::selection{background:var(--amber);color:#10141a;}
+
+  header{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:14px 22px;border-bottom:1px solid var(--border);
+    background:linear-gradient(180deg,#131922,#0e1218);
+  }
+  .brand{display:flex;align-items:baseline;gap:10px;}
+  .brand .mark{font-family:var(--font-mono);font-weight:600;font-size:15px;letter-spacing:0.02em;color:var(--amber);}
+  .brand .name{font-weight:600;font-size:16px;}
+  .brand .route{color:var(--text-dim);font-size:12.5px;font-family:var(--font-mono);}
+  .status{display:flex;align-items:center;gap:8px;font-family:var(--font-mono);font-size:12px;color:var(--text-dim);}
+  .status .dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green);}
+  .status.offline .dot{background:var(--red);box-shadow:0 0 6px var(--red);}
+
+  main{max-width:1400px;margin:0 auto;padding:18px 22px 40px;}
+
+  .kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);border:1px solid var(--border);margin-bottom:16px;}
+  .kpi{background:var(--panel);padding:14px 16px;}
+  .kpi .label{color:var(--text-dim);font-size:12px;margin-bottom:6px;}
+  .kpi .value{font-family:var(--font-mono);font-size:22px;font-weight:500;}
+  .kpi .value .unit{font-size:13px;color:var(--text-dim);margin-left:3px;}
+  .kpi .fleet-list{display:flex;flex-wrap:wrap;gap:6px 10px;font-family:var(--font-mono);font-size:12px;color:var(--text-dim);margin-top:2px;}
+  .fleet-tag{display:flex;align-items:center;gap:5px;}
+  .fleet-tag .sw{width:6px;height:6px;border-radius:50%;}
+
+  .toolbar{
+    display:flex;align-items:center;gap:22px;flex-wrap:wrap;
+    background:var(--panel);border:1px solid var(--border);padding:12px 16px;margin-bottom:16px;
+  }
+  button{
+    font-family:var(--font-ui);font-size:13px;font-weight:600;cursor:pointer;
+    border:1px solid var(--border);background:var(--panel-2);color:var(--text);
+    padding:9px 16px;transition:background 0.15s,border-color 0.15s;
+  }
+  button:hover{border-color:var(--text-faint);}
+  button:disabled{opacity:0.5;cursor:default;}
+  .btn-primary{background:var(--amber);color:#1a1305;border-color:var(--amber);}
+  .btn-primary:hover{background:#f0ad4d;}
+  .btn-primary:disabled{background:var(--panel-2);color:var(--text-dim);border-color:var(--border);}
+
+  .delay-widget{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+  .delay-widget label{color:var(--text-dim);font-size:12.5px;}
+  select,input[type=range]{font-family:var(--font-mono);}
+  select{
+    background:var(--panel-2);color:var(--text);border:1px solid var(--border);
+    padding:7px 10px;font-size:12.5px;
+  }
+  input[type=range]{width:150px;accent-color:var(--amber);}
+  .delay-value{font-family:var(--font-mono);font-size:13px;min-width:44px;color:var(--amber);}
+
+  .chart-panel{background:var(--panel);border:1px solid var(--border);padding:16px;margin-bottom:14px;position:relative;}
+  .chart-panel h2{margin:0 0 12px;font-size:13.5px;font-weight:600;color:var(--text-dim);}
+  #mareyWrap{overflow-x:auto;}
+  svg#marey{display:block;}
+  .axis-label{fill:var(--text-faint);font-family:var(--font-mono);font-size:10.5px;}
+  .station-label{fill:var(--text-dim);font-family:var(--font-mono);font-size:10.5px;}
+  .grid-line{stroke:var(--border);stroke-width:1;}
+  .station-line{stroke:#20293490;stroke-width:1;}
+
+  .legend{display:flex;flex-wrap:wrap;gap:18px;align-items:center;padding-top:12px;margin-top:8px;border-top:1px solid var(--border);font-size:12px;color:var(--text-dim);}
+  .legend-item{display:flex;align-items:center;gap:6px;}
+  .legend-swatch{width:22px;height:2px;}
+  .legend-swatch.dashed{background:none;border-top:2px dashed var(--amber);height:0;}
+  .legend-badge{width:12px;height:12px;border:1px solid var(--border);}
+
+  .tooltip{
+    position:fixed;pointer-events:none;background:#0b0f15;border:1px solid var(--border);
+    padding:8px 10px;font-size:12px;font-family:var(--font-mono);color:var(--text);
+    max-width:260px;z-index:50;display:none;line-height:1.5;
+  }
+  .tooltip .t-title{font-family:var(--font-ui);font-weight:600;color:var(--amber);margin-bottom:3px;font-size:12.5px;}
+
+  .conflict-banner{
+    display:none;align-items:center;gap:10px;background:#2a1817;border:1px solid #4a2926;
+    color:#f0b3ab;padding:10px 14px;font-size:13px;margin-bottom:14px;
+  }
+  .conflict-banner.show{display:flex;}
+  .conflict-banner button{background:transparent;border:1px solid #6a3a35;color:#f0b3ab;padding:5px 12px;font-size:12px;}
+
+  .modal-overlay{
+    display:none;position:fixed;inset:0;background:rgba(6,8,11,0.72);
+    align-items:center;justify-content:center;z-index:100;padding:20px;
+  }
+  .modal-overlay.show{display:flex;}
+  .modal{background:var(--panel);border:1px solid var(--border);max-width:920px;width:100%;max-height:88vh;overflow-y:auto;}
+  .modal-head{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:flex-start;}
+  .modal-head h3{margin:0 0 4px;font-size:15px;}
+  .modal-head p{margin:0;color:var(--text-dim);font-size:12.5px;font-family:var(--font-mono);}
+  .modal-close{background:transparent;border:none;color:var(--text-dim);font-size:20px;padding:0 4px;}
+  .modal-body{padding:18px 20px;}
+  .options-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
+  .option-card{border:1px solid var(--border);background:var(--panel-2);padding:14px;display:flex;flex-direction:column;gap:10px;}
+  .option-card.suggested{border-color:var(--teal);}
+  .option-card .opt-label{font-weight:600;font-size:13.5px;}
+  .option-card .opt-suggested-tag{color:var(--teal);font-size:11.5px;font-family:var(--font-mono);}
+  .option-card .opt-action{color:var(--text-dim);font-size:12.5px;line-height:1.5;}
+  .option-card .opt-metrics{font-family:var(--font-mono);font-size:12px;color:var(--text-dim);display:flex;flex-direction:column;gap:3px;}
+  .option-card .opt-metrics .num{color:var(--amber);}
+  .option-card .opt-notes{color:var(--text-faint);font-size:11.5px;line-height:1.5;font-style:normal;}
+  .option-card button{margin-top:auto;}
+  .matrix-block + .matrix-block{margin-top:22px;padding-top:22px;border-top:1px solid var(--border);}
+
+  @media (max-width:900px){
+    .kpi-row{grid-template-columns:repeat(2,1fr);}
+    .options-grid{grid-template-columns:1fr;}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <span class="mark">◆</span>
+    <span class="name">RailSync-AI</span>
+    <span class="route">GZB → ALJN · 150km double-electrified BG trunk</span>
+  </div>
+  <div class="status" id="statusIndicator"><span class="dot"></span><span id="statusText">connecting…</span></div>
+</header>
+
+<main>
+
+  <div class="kpi-row">
+    <div class="kpi">
+      <div class="label">Secondary delay prevented</div>
+      <div class="value" id="kpiDelayPrevented">—<span class="unit">min</span></div>
+    </div>
+    <div class="kpi">
+      <div class="label">Corridor utilization rate</div>
+      <div class="value" id="kpiUtilization">—<span class="unit">%</span></div>
+    </div>
+    <div class="kpi">
+      <div class="label">Dead-mileage saved</div>
+      <div class="value" id="kpiDeadMileage">—<span class="unit">km</span></div>
+    </div>
+    <div class="kpi">
+      <div class="label">Live fleet status</div>
+      <div class="fleet-list" id="fleetList">—</div>
+    </div>
+  </div>
+
+  <div class="conflict-banner" id="conflictBanner">
+    <span id="conflictBannerText"></span>
+    <button id="conflictBannerBtn">Review options</button>
+  </div>
+
+  <div class="toolbar">
+    <button class="btn-primary" id="btnOptimize">Run AI Corridor Optimization</button>
+    <div class="delay-widget">
+      <label for="trainSelect">Inject live delay</label>
+      <select id="trainSelect"></select>
+      <input type="range" id="delaySlider" min="0" max="90" step="5" value="30">
+      <span class="delay-value" id="delayValue">30 min</span>
+      <button id="btnSimulate">Simulate Incident</button>
+    </div>
+    <button id="btnReset" title="Clear injected delays and arbitration log">Reset Session</button>
+  </div>
+
+  <div class="chart-panel">
+    <h2>Dynamic Marey chart — time / distance</h2>
+    <div id="mareyWrap"><svg id="marey"></svg></div>
+    <div class="legend">
+      <div class="legend-item"><div class="legend-swatch" style="background:var(--blue)"></div>Premier</div>
+      <div class="legend-item"><div class="legend-swatch" style="background:var(--green)"></div>Express / MEMU</div>
+      <div class="legend-item"><div class="legend-swatch dashed"></div>Forecasted freight</div>
+      <div class="legend-item"><div class="legend-swatch" style="background:var(--red)"></div>Delayed</div>
+      <div class="legend-item"><div class="legend-badge" style="background:var(--slate)"></div>Civil block</div>
+      <div class="legend-item"><div class="legend-badge" style="background:var(--amber)"></div>TRD block</div>
+      <div class="legend-item"><div class="legend-badge" style="background:var(--teal)"></div>S&amp;T block</div>
+    </div>
+  </div>
+
+</main>
+
+<div class="tooltip" id="tooltip"></div>
+
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <div class="modal-head">
+      <div>
+        <h3>Trade-off arbitration</h3>
+        <p id="modalSubtitle">—</p>
+      </div>
+      <button class="modal-close" id="modalClose">&times;</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
+<script>
+const API_BASE = 'http://localhost:8000';
+
+const STATION_KMS = {GZB:0.0,MIU:19.5,DER:26.2,BRKY:30.8,AJR:35.4,DKDE:43.5,WAIR:52.8,CHL:58.2,KRJ:83.1,DAR:94.6,SOM:110.2,KLA:125.8,ALJN:150.0};
+const SIM_START = 6*60, SIM_END = 18*60;
+const CHART_W = 1180, CHART_H = 640, MARGIN = {top:14,right:24,bottom:34,left:64};
+const PLOT_W = CHART_W - MARGIN.left - MARGIN.right;
+const PLOT_H = CHART_H - MARGIN.top - MARGIN.bottom;
+
+const DEPT_COLOR = {CIVIL:'var(--slate)', TRD:'var(--amber)', SNT:'var(--teal)'};
+const TRAIN_COLOR = {PREMIER:'var(--blue)', EXPRESS:'var(--green)', MEMU:'var(--green)', FREIGHT:'var(--amber)'};
+
+let state = { trains:[], network:null, lastSchedule:null, injectedDelays:{}, currentMatrices:[] };
+
+function timeToX(min){ return MARGIN.left + ((min-SIM_START)/(SIM_END-SIM_START))*PLOT_W; }
+function kmToY(km){ return MARGIN.top + (km/150.0)*PLOT_H; }
+function hhmmToMin(t){ const [h,m]=t.split(':').map(Number); return h*60+m; }
+
+function setStatus(ok, text){
+  document.getElementById('statusText').textContent = text;
+  document.getElementById('statusIndicator').classList.toggle('offline', !ok);
+}
+
+async function api(path, opts){
+  const res = await fetch(API_BASE+path, opts);
+  if(!res.ok){ throw new Error(`${path} -> ${res.status}`); }
+  return res.json();
+}
+
+// ---------- initial load ----------
+async function init(){
+  try{
+    const [network, trains] = await Promise.all([api('/api/v1/network'), api('/api/v1/trains')]);
+    state.network = network; state.trains = trains;
+    setStatus(true, `live · ${network.stations.length} stations`);
+    populateTrainSelect();
+    drawAxes();
+    drawTrains();
+    await runOptimize();
+    await loadKpis();
+  }catch(e){
+    setStatus(false, 'backend unreachable — start uvicorn on :8000');
+    console.error(e);
+  }
+}
+
+function populateTrainSelect(){
+  const sel = document.getElementById('trainSelect');
+  sel.innerHTML = '';
+  state.trains.forEach(t=>{
+    const opt = document.createElement('option');
+    opt.value = t.train_no;
+    opt.textContent = `${t.train_no} · ${t.name}`;
+    sel.appendChild(opt);
+  });
+}
+
+// ---------- SVG scaffolding ----------
+function svgEl(tag, attrs){
+  const el = document.createElementNS('http://www.w3.org/2000/svg', tag);
+  for(const k in attrs) el.setAttribute(k, attrs[k]);
+  return el;
+}
+
+function drawAxes(){
+  const svg = document.getElementById('marey');
+  svg.setAttribute('viewBox', `0 0 ${CHART_W} ${CHART_H}`);
+  svg.setAttribute('width', CHART_W);
+  svg.setAttribute('height', CHART_H);
+  svg.innerHTML = '';
+
+  // vertical time grid (30 min ticks)
+  for(let m=SIM_START; m<=SIM_END; m+=30){
+    const x = timeToX(m);
+    svg.appendChild(svgEl('line', {x1:x,y1:MARGIN.top,x2:x,y2:MARGIN.top+PLOT_H, class:'grid-line'}));
+    const label = svgEl('text', {x:x, y:CHART_H-14, class:'axis-label', 'text-anchor':'middle'});
+    label.textContent = `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;
+    svg.appendChild(label);
+  }
+
+  // horizontal station lines, spaced by true km (not equal spacing)
+  state.network.stations.forEach(st=>{
+    const y = kmToY(st.km);
+    svg.appendChild(svgEl('line', {x1:MARGIN.left,y1:y,x2:MARGIN.left+PLOT_W,y2:y, class:'station-line'}));
+    const label = svgEl('text', {x:MARGIN.left-8, y:y+3, class:'station-label', 'text-anchor':'end'});
+    label.textContent = `${st.code}`;
+    svg.appendChild(label);
+  });
+
+  svg.appendChild(svgEl('g', {id:'trainLayer'}));
+  svg.appendChild(svgEl('g', {id:'corridorLayer'}));
+}
+
+function drawTrains(delayOverrides){
+  delayOverrides = delayOverrides || {};
+  const layer = document.getElementById('trainLayer');
+  layer.innerHTML = '';
+  state.trains.forEach(t=>{
+    const delay = delayOverrides[t.train_no] || 0;
+    const pts = t.schedule.map(p=>{
+      const arrMin = hhmmToMin(p.arr) + delay;
+      return `${timeToX(arrMin)},${kmToY(p.km)}`;
+    }).join(' ');
+    const isDelayed = delay > 0;
+    const color = isDelayed ? 'var(--red)' : (TRAIN_COLOR[t.type] || 'var(--slate)');
+    const line = svgEl('polyline', {
+      points: pts, fill:'none', stroke:color, 'stroke-width': t.priority===1?2.2:1.4,
+      'stroke-dasharray': t.type==='FREIGHT' ? '5,4' : 'none',
+      'data-train': t.train_no, opacity:0.92,
+    });
+    line.addEventListener('mousemove', (e)=>showTooltip(e, `<div class="t-title">${t.train_no} · ${t.name}</div>${t.type} · priority ${t.priority}${isDelayed?`<br>delayed +${delay} min`:''}`));
+    line.addEventListener('mouseleave', hideTooltip);
+    layer.appendChild(line);
+  });
+}
+
+function drawCorridors(corridors){
+  const layer = document.getElementById('corridorLayer');
+  layer.innerHTML = '';
+  corridors.forEach(c=>{
+    const x1 = timeToX(hhmmToMin(c.sanctioned_start));
+    const x2 = timeToX(hhmmToMin(c.sanctioned_end));
+    const y1 = kmToY(c.km_start);
+    const y2 = Math.max(kmToY(c.km_end), y1+6);
+    const color = DEPT_COLOR[c.primary_department] || DEPT_COLOR[c.departments[0]] || 'var(--slate)';
+    const rect = svgEl('rect', {
+      x:x1, y:y1, width:Math.max(x2-x1,2), height:y2-y1,
+      fill:color, opacity:0.28, stroke:color, 'stroke-width':1,
+    });
+    rect.style.cursor = 'pointer';
+    rect.addEventListener('mousemove', (e)=>showTooltip(e,
+      `<div class="t-title">${c.corridor_id} ${c.badge}</div>` +
+      `km ${c.km_start}–${c.km_end} · ${c.sanctioned_start}–${c.sanctioned_end}<br>` +
+      `machines: ${c.machines_required.length?c.machines_required.join(', '):'none'}<br>` +
+      `${c.ohe_block_active?'OHE block · ':''}${c.fouling_active?'fouling · ':''}${c.tsr_active?`TSR ${c.tsr_speed_kmh}km/h`:''}`
+    ));
+    rect.addEventListener('mouseleave', hideTooltip);
+    layer.appendChild(rect);
+
+    const badgeLabel = svgEl('text', {x:x1+4, y:y1+12, class:'axis-label', fill:'var(--text)'});
+    badgeLabel.textContent = c.badge;
+    layer.appendChild(badgeLabel);
+  });
+}
+
+function showTooltip(e, html){
+  const tip = document.getElementById('tooltip');
+  tip.innerHTML = html;
+  tip.style.display = 'block';
+  tip.style.left = (e.clientX+14)+'px';
+  tip.style.top = (e.clientY+14)+'px';
+}
+function hideTooltip(){ document.getElementById('tooltip').style.display = 'none'; }
+
+// ---------- actions ----------
+async function runOptimize(){
+  const btn = document.getElementById('btnOptimize');
+  btn.disabled = true; btn.textContent = 'Optimizing…';
+  try{
+    const result = await api('/api/v1/optimize', {method:'POST'});
+    state.lastSchedule = result;
+    drawCorridors(result.corridors);
+    document.getElementById('kpiDelayPrevented').innerHTML = `${result.kpis.total_secondary_delay_prevented_min}<span class="unit">min</span>`;
+    document.getElementById('kpiUtilization').innerHTML = `${result.kpis.corridor_utilization_rate_pct}<span class="unit">%</span>`;
+  } finally {
+    btn.disabled = false; btn.textContent = 'Run AI Corridor Optimization';
+  }
+}
+
+async function loadKpis(){
+  try{
+    const kpis = await api('/api/v1/kpis');
+    document.getElementById('kpiDeadMileage').innerHTML = `${kpis.dead_mileage_saved_km}<span class="unit">km</span>`;
+    const fleetList = document.getElementById('fleetList');
+    fleetList.innerHTML = '';
+    const stateColor = {IDLE:'var(--green)', WORKING:'var(--amber)', TRANSIT:'var(--blue)'};
+    Object.entries(kpis.fleet_status).forEach(([asset,st])=>{
+      const tag = document.createElement('span');
+      tag.className = 'fleet-tag';
+      tag.innerHTML = `<span class="sw" style="background:${stateColor[st]||'var(--slate)'}"></span>${asset}: ${st.toLowerCase()}`;
+      fleetList.appendChild(tag);
+    });
+  }catch(e){ console.error(e); }
+}
+
+async function simulateIncident(){
+  const trainNo = document.getElementById('trainSelect').value;
+  const delayMin = Number(document.getElementById('delaySlider').value);
+  const btn = document.getElementById('btnSimulate');
+  btn.disabled = true; btn.textContent = 'Simulating…';
+  try{
+    const result = await api('/api/v1/simulate-delay', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({train_no: trainNo, delay_minutes: delayMin}),
+    });
+    state.injectedDelays[trainNo] = result.total_injected_delay_minutes;
+    state.currentMatrices = result.trade_off_matrices;
+    if(state.lastSchedule) drawCorridors(result.conflicts_detected.length ? scheduleFromConflicts() : state.lastSchedule.corridors);
+    drawTrains(state.injectedDelays);
+    await runOptimize(); // re-solve against the new delay to refresh corridor placement + KPIs
+    drawTrains(state.injectedDelays);
+
+    const banner = document.getElementById('conflictBanner');
+    if(result.conflicts_detected.length){
+      document.getElementById('conflictBannerText').textContent =
+        `${trainNo} now conflicts with ${result.conflicts_detected.length} sanctioned corridor(s) after a +${delayMin}min delay.`;
+      banner.classList.add('show');
+    } else {
+      banner.classList.remove('show');
+    }
+    await loadKpis();
+  }catch(e){
+    console.error(e);
+  } finally {
+    btn.disabled = false; btn.textContent = 'Simulate Incident';
+  }
+}
+
+function scheduleFromConflicts(){ return state.lastSchedule ? state.lastSchedule.corridors : []; }
+
+function openArbitrationModal(){
+  const overlay = document.getElementById('modalOverlay');
+  const body = document.getElementById('modalBody');
+  const subtitle = document.getElementById('modalSubtitle');
+  body.innerHTML = '';
+
+  if(!state.currentMatrices.length){
+    subtitle.textContent = 'No active conflicts';
+    body.innerHTML = '<p style="color:var(--text-dim)">No trade-off matrix to show — simulate a delay that collides with a sanctioned corridor first.</p>';
+    overlay.classList.add('show');
+    return;
+  }
+  subtitle.textContent = `${state.currentMatrices.length} conflict(s) awaiting a decision`;
+
+  state.currentMatrices.forEach(matrix=>{
+    const block = document.createElement('div');
+    block.className = 'matrix-block';
+    const head = document.createElement('div');
+    head.innerHTML = `<div style="font-weight:600;margin-bottom:2px">${matrix.train_no} · ${matrix.train_name}</div>
+      <div style="color:var(--text-dim);font-family:var(--font-mono);font-size:12px;margin-bottom:12px">
+        ${matrix.corridor_id} · sanctioned ${matrix.corridor_window}</div>`;
+    block.appendChild(head);
+
+    const grid = document.createElement('div');
+    grid.className = 'options-grid';
+    matrix.options.forEach(opt=>{
+      const card = document.createElement('div');
+      card.className = 'option-card' + (opt.option === matrix.recommended_option ? ' suggested' : '');
+      const metrics = Object.entries(opt).filter(([k])=>k.endsWith('_min') || k.endsWith('_cost') || k==='penalty_score')
+        .map(([k,v])=>`<div>${k.replace(/_/g,' ')}: <span class="num">${v}</span></div>`).join('');
+      card.innerHTML = `
+        <div class="opt-label">${opt.label}</div>
+        ${opt.option === matrix.recommended_option ? '<div class="opt-suggested-tag">Suggested option</div>' : ''}
+        <div class="opt-action">${opt.action}</div>
+        <div class="opt-metrics">${metrics}</div>
+        <div class="opt-notes">${opt.notes || ''}</div>
+      `;
+      const applyBtn = document.createElement('button');
+      applyBtn.textContent = 'Select & Apply';
+      applyBtn.addEventListener('click', ()=>applyArbitration(matrix.train_no, matrix.corridor_id, opt.option, applyBtn));
+      card.appendChild(applyBtn);
+      grid.appendChild(card);
+    });
+    block.appendChild(grid);
+    body.appendChild(block);
+  });
+
+  overlay.classList.add('show');
+}
+
+async function applyArbitration(trainNo, corridorId, option, btn){
+  btn.disabled = true; btn.textContent = 'Applying…';
+  try{
+    await api('/api/v1/arbitrate', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({train_no: trainNo, corridor_id: corridorId, option}),
+    });
+    document.getElementById('modalOverlay').classList.remove('show');
+    document.getElementById('conflictBanner').classList.remove('show');
+    await runOptimize();
+    await loadKpis();
+    drawTrains(state.injectedDelays);
+  }catch(e){
+    console.error(e);
+    btn.textContent = 'Failed — retry';
+    btn.disabled = false;
+  }
+}
+
+async function resetSession(){
+  await api('/api/v1/reset-session', {method:'POST'});
+  state.injectedDelays = {};
+  state.currentMatrices = [];
+  document.getElementById('conflictBanner').classList.remove('show');
+  drawTrains();
+  await runOptimize();
+  await loadKpis();
+}
+
+// ---------- wiring ----------
+document.getElementById('delaySlider').addEventListener('input', (e)=>{
+  document.getElementById('delayValue').textContent = `${e.target.value} min`;
+});
+document.getElementById('btnOptimize').addEventListener('click', runOptimize);
+document.getElementById('btnSimulate').addEventListener('click', simulateIncident);
+document.getElementById('btnReset').addEventListener('click', resetSession);
+document.getElementById('conflictBannerBtn').addEventListener('click', openArbitrationModal);
+document.getElementById('modalClose').addEventListener('click', ()=>document.getElementById('modalOverlay').classList.remove('show'));
+document.getElementById('modalOverlay').addEventListener('click', (e)=>{ if(e.target.id==='modalOverlay') e.currentTarget.classList.remove('show'); });
+
+init();
+</script>
+</body>
+</html>

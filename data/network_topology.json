@@ -1,0 +1,119 @@
+{
+  "section": "GZB-ALJN",
+  "description": "Ghaziabad Jn to Aligarh Jn, 150km Double Electrified BG trunk route",
+  "total_km": 150.0,
+  "lines": [
+    "UP",
+    "DOWN"
+  ],
+  "stations": [
+    {
+      "code": "GZB",
+      "name": "Ghaziabad Jn",
+      "km": 0.0,
+      "platforms": 6,
+      "loops": 4,
+      "siding_base": "Siding Base A",
+      "main_lines": 2
+    },
+    {
+      "code": "MIU",
+      "name": "Maripat",
+      "km": 19.5,
+      "platforms": null,
+      "loops": 2,
+      "main_lines": 2
+    },
+    {
+      "code": "DER",
+      "name": "Dadri",
+      "km": 26.2,
+      "platforms": null,
+      "loops": 3,
+      "main_lines": 2,
+      "freight_interchange": true
+    },
+    {
+      "code": "BRKY",
+      "name": "Boraki",
+      "km": 30.8,
+      "platforms": null,
+      "loops": 0,
+      "main_lines": 2
+    },
+    {
+      "code": "AJR",
+      "name": "Ajaibpur",
+      "km": 35.4,
+      "platforms": null,
+      "loops": 1,
+      "main_lines": 2
+    },
+    {
+      "code": "DKDE",
+      "name": "Dankaur",
+      "km": 43.5,
+      "platforms": null,
+      "loops": 2,
+      "main_lines": 2
+    },
+    {
+      "code": "WAIR",
+      "name": "Wair",
+      "km": 52.8,
+      "platforms": null,
+      "loops": 0,
+      "main_lines": 2
+    },
+    {
+      "code": "CHL",
+      "name": "Chandausi / Chola",
+      "km": 58.2,
+      "platforms": null,
+      "loops": 2,
+      "main_lines": 2
+    },
+    {
+      "code": "KRJ",
+      "name": "Khurja Jn",
+      "km": 83.1,
+      "platforms": null,
+      "loops": 5,
+      "siding_base": "Siding Base B",
+      "main_lines": 4
+    },
+    {
+      "code": "DAR",
+      "name": "Danwar",
+      "km": 94.6,
+      "platforms": null,
+      "loops": 0,
+      "main_lines": 2
+    },
+    {
+      "code": "SOM",
+      "name": "Somna",
+      "km": 110.2,
+      "platforms": null,
+      "loops": 2,
+      "main_lines": 2
+    },
+    {
+      "code": "KLA",
+      "name": "Kulwa",
+      "km": 125.8,
+      "platforms": null,
+      "loops": 0,
+      "main_lines": 2
+    },
+    {
+      "code": "ALJN",
+      "name": "Aligarh Jn",
+      "km": 150.0,
+      "platforms": 7,
+      "loops": 6,
+      "siding_base": "Siding Base C",
+      "main_lines": 2
+    }
+  ]
+}

@@ -1,0 +1,302 @@
+[
+  {
+    "segment_km_start": 0.0,
+    "segment_km_end": 5.0,
+    "track_geometry_index": 60,
+    "oms_vertical_g": 0.31,
+    "oms_lateral_g": 0.14,
+    "oms_flag_urgent": true,
+    "overdue_maintenance_days": 0,
+    "criticality_score": 2
+  },
+  {
+    "segment_km_start": 5.0,
+    "segment_km_end": 10.0,
+    "track_geometry_index": 44,
+    "oms_vertical_g": 0.27,
+    "oms_lateral_g": 0.07,
+    "oms_flag_urgent": true,
+    "overdue_maintenance_days": 0,
+    "criticality_score": 4
+  },
+  {
+    "segment_km_start": 10.0,
+    "segment_km_end": 15.0,
+    "track_geometry_index": 98,
+    "oms_vertical_g": 0.19,
+    "oms_lateral_g": 0.06,
+    "oms_flag_urgent": false,
+    "overdue_maintenance_days": 21,
+    "criticality_score": 7
+  },
+  {
+    "segment_km_start": 15.0,
+    "segment_km_end": 20.0,
+    "track_geometry_index": 66,
+    "oms_vertical_g": 0.07,
+    "oms_lateral_g": 0.07,
+    "oms_flag_urgent": false,
+    "overdue_maintenance_days": 21,
+    "criticality_score": 7
+  },
+  {
+    "segment_km_start": 20.0,
+    "segment_km_end": 25.0,
+    "track_geometry_index": 43,
+    "oms_vertical_g": 0.27,
+    "oms_lateral_g": 0.08,
+    "oms_flag_urgent": true,
+    "overdue_maintenance_days": 3,
+    "criticality_score": 5
+  },
+  {
+    "segment_km_start": 25.0,
+    "segment_km_end": 30.0,
+    "track_geometry_index": 80,
+    "oms_vertical_g": 0.22,
+    "oms_lateral_g": 0.27,
+    "oms_flag_urgent": true,
+    "overdue_maintenance_days": 21,
+    "criticality_score": 9
+  },
+  {
+    "segment_km_start": 30.0,
+    "segment_km_end": 35.0,
+    "track_geometry_index": 43,
+    "oms_vertical_g": 0.31,
+    "oms_lateral_g": 0.06,
+    "oms_flag_urgent": true,
+    "overdue_maintenance_days": 0,
+    "criticality_score": 4
+  },
+  {
+    "segment_km_start": 35.0,
+    "segment_km_end": 40.0,
+    "track_geometry_index": 58,
+    "oms_vertical_g": 0.16,
+    "oms_lateral_g": 0.17,
+    "oms_flag_urgent": false,
+    "overdue_maintenance_days": 7,
+    "criticality_score": 4
+  },
+  {
+    "segment_km_start": 40.0,
+    "segment_km_end": 45.0,
+    "track_geometry_index": 75,
+    "oms_vertical_g": 0.27,
+    "oms_lateral_g": 0.09,
+    "oms_flag_urgent": true,
+    "overdue_maintenance_days": 3,
+    "criticality_score": 3
+  },
+  {
+    "segment_km_start": 45.0,
+    "segment_km_end": 50.0,
+    "track_geometry_index": 63,
+    "oms_vertical_g": 0.08,
+    "oms_lateral_g": 0.21,
+    "oms_flag_urgent": true,
+    "overdue_maintenance_days": 0,
+    "criticality_score": 2
+  },
+  {
+    "segment_km_start": 50.0,
+    "segment_km_end": 55.0,
+    "track_geometry_index": 79,
+    "oms_vertical_g": 0.11,
+    "oms_lateral_g": 0.21,
+    "oms_flag_urgent": true,
+    "overdue_maintenance_days": 21,
+    "criticality_score": 9
+  },
+  {
+    "segment_km_start": 55.0,
+    "segment_km_end": 60.0,
+    "track_geometry_index": 89,
+    "oms_vertical_g": 0.13,
+    "oms_lateral_g": 0.18,
+    "oms_flag_urgent": false,
+    "overdue_maintenance_days": 30,
+    "criticality_score": 10
+  },
+  {
+    "segment_km_start": 60.0,
+    "segment_km_end": 65.0,
+    "track_geometry_index": 63,
+    "oms_vertical_g": 0.13,
+    "oms_lateral_g": 0.23,
+    "oms_flag_urgent": true,
+    "overdue_maintenance_days": 3,
+    "criticality_score": 3
+  },
+  {
+    "segment_km_start": 65.0,
+    "segment_km_end": 70.0,
+    "track_geometry_index": 45,
+    "oms_vertical_g": 0.21,
+    "oms_lateral_g": 0.17,
+    "oms_flag_urgent": true,
+    "overdue_maintenance_days": 14,
+    "criticality_score": 9
+  },
+  {
+    "segment_km_start": 70.0,
+    "segment_km_end": 75.0,
+    "track_geometry_index": 86,
+    "oms_vertical_g": 0.17,
+    "oms_lateral_g": 0.19,
+    "oms_flag_urgent": false,
+    "overdue_maintenance_days": 0,
+    "criticality_score": 0
+  },
+  {
+    "segment_km_start": 75.0,
+    "segment_km_end": 80.0,
+    "track_geometry_index": 47,
+    "oms_vertical_g": 0.19,
+    "oms_lateral_g": 0.09,
+    "oms_flag_urgent": false,
+    "overdue_maintenance_days": 14,
+    "criticality_score": 7
+  },
+  {
+    "segment_km_start": 80.0,
+    "segment_km_end": 85.0,
+    "track_geometry_index": 49,
+    "oms_vertical_g": 0.3,
+    "oms_lateral_g": 0.15,
+    "oms_flag_urgent": true,
+    "overdue_maintenance_days": 0,
+    "criticality_score": 4
+  },
+  {
+    "segment_km_start": 85.0,
+    "segment_km_end": 90.0,
+    "track_geometry_index": 88,
+    "oms_vertical_g": 0.2,
+    "oms_lateral_g": 0.23,
+    "oms_flag_urgent": true,
+    "overdue_maintenance_days": 14,
+    "criticality_score": 7
+  },
+  {
+    "segment_km_start": 90.0,
+    "segment_km_end": 95.0,
+    "track_geometry_index": 61,
+    "oms_vertical_g": 0.24,
+    "oms_lateral_g": 0.19,
+    "oms_flag_urgent": true,
+    "overdue_maintenance_days": 30,
+    "criticality_score": 10
+  },
+  {
+    "segment_km_start": 95.0,
+    "segment_km_end": 100.0,
+    "track_geometry_index": 44,
+    "oms_vertical_g": 0.28,
+    "oms_lateral_g": 0.27,
+    "oms_flag_urgent": true,
+    "overdue_maintenance_days": 30,
+    "criticality_score": 10
+  },
+  {
+    "segment_km_start": 100.0,
+    "segment_km_end": 105.0,
+    "track_geometry_index": 84,
+    "oms_vertical_g": 0.23,
+    "oms_lateral_g": 0.06,
+    "oms_flag_urgent": true,
+    "overdue_maintenance_days": 7,
+    "criticality_score": 4
+  },
+  {
+    "segment_km_start": 105.0,
+    "segment_km_end": 110.0,
+    "track_geometry_index": 81,
+    "oms_vertical_g": 0.21,
+    "oms_lateral_g": 0.21,
+    "oms_flag_urgent": true,
+    "overdue_maintenance_days": 30,
+    "criticality_score": 10
+  },
+  {
+    "segment_km_start": 110.0,
+    "segment_km_end": 115.0,
+    "track_geometry_index": 58,
+    "oms_vertical_g": 0.24,
+    "oms_lateral_g": 0.25,
+    "oms_flag_urgent": true,
+    "overdue_maintenance_days": 14,
+    "criticality_score": 9
+  },
+  {
+    "segment_km_start": 115.0,
+    "segment_km_end": 120.0,
+    "track_geometry_index": 41,
+    "oms_vertical_g": 0.3,
+    "oms_lateral_g": 0.13,
+    "oms_flag_urgent": true,
+    "overdue_maintenance_days": 0,
+    "criticality_score": 4
+  },
+  {
+    "segment_km_start": 120.0,
+    "segment_km_end": 125.0,
+    "track_geometry_index": 71,
+    "oms_vertical_g": 0.07,
+    "oms_lateral_g": 0.23,
+    "oms_flag_urgent": true,
+    "overdue_maintenance_days": 0,
+    "criticality_score": 2
+  },
+  {
+    "segment_km_start": 125.0,
+    "segment_km_end": 130.0,
+    "track_geometry_index": 87,
+    "oms_vertical_g": 0.12,
+    "oms_lateral_g": 0.14,
+    "oms_flag_urgent": false,
+    "overdue_maintenance_days": 30,
+    "criticality_score": 10
+  },
+  {
+    "segment_km_start": 130.0,
+    "segment_km_end": 135.0,
+    "track_geometry_index": 45,
+    "oms_vertical_g": 0.09,
+    "oms_lateral_g": 0.14,
+    "oms_flag_urgent": false,
+    "overdue_maintenance_days": 7,
+    "criticality_score": 4
+  },
+  {
+    "segment_km_start": 135.0,
+    "segment_km_end": 140.0,
+    "track_geometry_index": 96,
+    "oms_vertical_g": 0.09,
+    "oms_lateral_g": 0.15,
+    "oms_flag_urgent": false,
+    "overdue_maintenance_days": 7,
+    "criticality_score": 2
+  },
+  {
+    "segment_km_start": 140.0,
+    "segment_km_end": 145.0,
+    "track_geometry_index": 85,
+    "oms_vertical_g": 0.16,
+    "oms_lateral_g": 0.13,
+    "oms_flag_urgent": false,
+    "overdue_maintenance_days": 21,
+    "criticality_score": 7
+  },
+  {
+    "segment_km_start": 145.0,
+    "segment_km_end": 150.0,
+    "track_geometry_index": 54,
+    "oms_vertical_g": 0.09,
+    "oms_lateral_g": 0.09,
+    "oms_flag_urgent": false,
+    "overdue_maintenance_days": 3,
+    "criticality_score": 3
+  }
+]

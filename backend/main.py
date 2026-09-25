@@ -5,15 +5,27 @@ RailSync-AI REST API (FastAPI).
 Run with:  uvicorn backend.main:app --reload --port 8000
 """
 
+# ---------------------------------------------------------------------------
+# Path bootstrap — ensures flat imports (from data_generator import ...) work
+# whether this module is loaded as a package (uvicorn backend.main:app from
+# the project root) or run directly (python main.py from inside backend/).
+# ---------------------------------------------------------------------------
+import sys
+import os
+_BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
+if _BACKEND_DIR not in sys.path:
+    sys.path.insert(0, _BACKEND_DIR)
+# ---------------------------------------------------------------------------
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from backend.data_generator import load_network, load_trains, load_demands, load_machinery, load_asset_health
-from backend.clustering import cluster_demands, utilization_rate
-from backend.optimizer import optimize_schedule
-from backend.arbitration import inject_delay, detect_conflicts, trade_off_matrix, apply_arbitration, reset_session
-from backend.relocation import plan_relocations
+from data_generator import load_network, load_trains, load_demands, load_machinery, load_asset_health
+from clustering import cluster_demands, utilization_rate
+from optimizer import optimize_schedule
+from arbitration import inject_delay, detect_conflicts, trade_off_matrix, apply_arbitration, reset_session, get_session_state
+from relocation import plan_relocations
 
 app = FastAPI(
     title="RailSync-AI",
@@ -91,7 +103,11 @@ def get_trains():
 
 @app.post("/api/v1/optimize")
 def post_optimize():
-    result = optimize_schedule()
+    state = get_session_state()
+    result = optimize_schedule(
+        injected_delays=state["injected_delays"],
+        excluded_corridor_ids=state["excluded_corridor_ids"],
+    )
     _LAST_SCHEDULE["result"] = result
     return result
 

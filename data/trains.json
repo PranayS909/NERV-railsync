@@ -1,0 +1,600 @@
+[
+  {
+    "train_no": "20958",
+    "name": "Vande Bharat Express",
+    "type": "PREMIER",
+    "priority": 1,
+    "weight": 100,
+    "direction": "DOWN",
+    "max_speed_kmh": 130,
+    "schedule": [
+      {
+        "station": "GZB",
+        "arr": "06:00",
+        "dep": "06:02",
+        "km": 0.0
+      },
+      {
+        "station": "MIU",
+        "arr": "06:15",
+        "dep": "06:17",
+        "km": 19.5
+      },
+      {
+        "station": "DER",
+        "arr": "06:21",
+        "dep": "06:23",
+        "km": 26.2
+      },
+      {
+        "station": "AJR",
+        "arr": "06:29",
+        "dep": "06:31",
+        "km": 35.4
+      },
+      {
+        "station": "DKDE",
+        "arr": "06:37",
+        "dep": "06:39",
+        "km": 43.5
+      },
+      {
+        "station": "CHL",
+        "arr": "06:48",
+        "dep": "06:50",
+        "km": 58.2
+      },
+      {
+        "station": "KRJ",
+        "arr": "07:07",
+        "dep": "07:09",
+        "km": 83.1
+      },
+      {
+        "station": "SOM",
+        "arr": "07:27",
+        "dep": "07:29",
+        "km": 110.2
+      },
+      {
+        "station": "ALJN",
+        "arr": "07:55",
+        "dep": "07:57",
+        "km": 150.0
+      }
+    ]
+  },
+  {
+    "train_no": "12424",
+    "name": "Rajdhani Express",
+    "type": "PREMIER",
+    "priority": 1,
+    "weight": 100,
+    "direction": "DOWN",
+    "max_speed_kmh": 130,
+    "schedule": [
+      {
+        "station": "GZB",
+        "arr": "07:00",
+        "dep": "07:02",
+        "km": 0.0
+      },
+      {
+        "station": "ALJN",
+        "arr": "08:41",
+        "dep": "08:43",
+        "km": 150.0
+      }
+    ]
+  },
+  {
+    "train_no": "12004",
+    "name": "Shatabdi Express",
+    "type": "PREMIER",
+    "priority": 1,
+    "weight": 100,
+    "direction": "UP",
+    "max_speed_kmh": 120,
+    "schedule": [
+      {
+        "station": "ALJN",
+        "arr": "08:00",
+        "dep": "08:02",
+        "km": 150.0
+      },
+      {
+        "station": "KRJ",
+        "arr": "08:50",
+        "dep": "08:52",
+        "km": 83.1
+      },
+      {
+        "station": "GZB",
+        "arr": "09:51",
+        "dep": "09:53",
+        "km": 0.0
+      }
+    ]
+  },
+  {
+    "train_no": "14218",
+    "name": "Unchahar Express",
+    "type": "EXPRESS",
+    "priority": 2,
+    "weight": 40,
+    "direction": "DOWN",
+    "max_speed_kmh": 100,
+    "schedule": [
+      {
+        "station": "GZB",
+        "arr": "09:00",
+        "dep": "09:02",
+        "km": 0.0
+      },
+      {
+        "station": "DER",
+        "arr": "09:24",
+        "dep": "09:26",
+        "km": 26.2
+      },
+      {
+        "station": "DKDE",
+        "arr": "09:41",
+        "dep": "09:43",
+        "km": 43.5
+      },
+      {
+        "station": "KRJ",
+        "arr": "10:17",
+        "dep": "10:19",
+        "km": 83.1
+      },
+      {
+        "station": "ALJN",
+        "arr": "11:17",
+        "dep": "11:19",
+        "km": 150.0
+      }
+    ]
+  },
+  {
+    "train_no": "64102",
+    "name": "Aligarh - Delhi MEMU",
+    "type": "MEMU",
+    "priority": 2,
+    "weight": 40,
+    "direction": "UP",
+    "max_speed_kmh": 90,
+    "schedule": [
+      {
+        "station": "ALJN",
+        "arr": "06:30",
+        "dep": "06:32",
+        "km": 150.0
+      },
+      {
+        "station": "KLA",
+        "arr": "06:55",
+        "dep": "06:57",
+        "km": 125.8
+      },
+      {
+        "station": "SOM",
+        "arr": "07:11",
+        "dep": "07:13",
+        "km": 110.2
+      },
+      {
+        "station": "DAR",
+        "arr": "07:28",
+        "dep": "07:29",
+        "km": 94.6
+      },
+      {
+        "station": "KRJ",
+        "arr": "07:40",
+        "dep": "07:42",
+        "km": 83.1
+      },
+      {
+        "station": "CHL",
+        "arr": "08:05",
+        "dep": "08:07",
+        "km": 58.2
+      },
+      {
+        "station": "WAIR",
+        "arr": "08:12",
+        "dep": "08:14",
+        "km": 52.8
+      },
+      {
+        "station": "DKDE",
+        "arr": "08:22",
+        "dep": "08:24",
+        "km": 43.5
+      },
+      {
+        "station": "AJR",
+        "arr": "08:32",
+        "dep": "08:33",
+        "km": 35.4
+      },
+      {
+        "station": "BRKY",
+        "arr": "08:38",
+        "dep": "08:39",
+        "km": 30.8
+      },
+      {
+        "station": "DER",
+        "arr": "08:43",
+        "dep": "08:45",
+        "km": 26.2
+      },
+      {
+        "station": "MIU",
+        "arr": "08:51",
+        "dep": "08:53",
+        "km": 19.5
+      },
+      {
+        "station": "GZB",
+        "arr": "09:11",
+        "dep": "09:13",
+        "km": 0.0
+      }
+    ]
+  },
+  {
+    "train_no": "15484",
+    "name": "Ananya Express",
+    "type": "EXPRESS",
+    "priority": 2,
+    "weight": 40,
+    "direction": "DOWN",
+    "max_speed_kmh": 100,
+    "schedule": [
+      {
+        "station": "GZB",
+        "arr": "10:15",
+        "dep": "10:17",
+        "km": 0.0
+      },
+      {
+        "station": "DER",
+        "arr": "10:39",
+        "dep": "10:41",
+        "km": 26.2
+      },
+      {
+        "station": "AJR",
+        "arr": "10:49",
+        "dep": "10:51",
+        "km": 35.4
+      },
+      {
+        "station": "CHL",
+        "arr": "11:11",
+        "dep": "11:13",
+        "km": 58.2
+      },
+      {
+        "station": "KRJ",
+        "arr": "11:34",
+        "dep": "11:36",
+        "km": 83.1
+      },
+      {
+        "station": "ALJN",
+        "arr": "12:34",
+        "dep": "12:36",
+        "km": 150.0
+      }
+    ]
+  },
+  {
+    "train_no": "15069",
+    "name": "Doon Express",
+    "type": "EXPRESS",
+    "priority": 2,
+    "weight": 40,
+    "direction": "UP",
+    "max_speed_kmh": 100,
+    "schedule": [
+      {
+        "station": "ALJN",
+        "arr": "11:30",
+        "dep": "11:32",
+        "km": 150.0
+      },
+      {
+        "station": "SOM",
+        "arr": "12:06",
+        "dep": "12:08",
+        "km": 110.2
+      },
+      {
+        "station": "KRJ",
+        "arr": "12:31",
+        "dep": "12:33",
+        "km": 83.1
+      },
+      {
+        "station": "DKDE",
+        "arr": "13:07",
+        "dep": "13:09",
+        "km": 43.5
+      },
+      {
+        "station": "GZB",
+        "arr": "13:47",
+        "dep": "13:49",
+        "km": 0.0
+      }
+    ]
+  },
+  {
+    "train_no": "12554",
+    "name": "Vaishali Express",
+    "type": "EXPRESS",
+    "priority": 2,
+    "weight": 40,
+    "direction": "DOWN",
+    "max_speed_kmh": 100,
+    "schedule": [
+      {
+        "station": "GZB",
+        "arr": "13:00",
+        "dep": "13:02",
+        "km": 0.0
+      },
+      {
+        "station": "DKDE",
+        "arr": "13:39",
+        "dep": "13:41",
+        "km": 43.5
+      },
+      {
+        "station": "KRJ",
+        "arr": "14:15",
+        "dep": "14:17",
+        "km": 83.1
+      },
+      {
+        "station": "DAR",
+        "arr": "14:27",
+        "dep": "14:29",
+        "km": 94.6
+      },
+      {
+        "station": "ALJN",
+        "arr": "15:17",
+        "dep": "15:19",
+        "km": 150.0
+      }
+    ]
+  },
+  {
+    "train_no": "BOXN_COAL_UP",
+    "name": "Boxn Coal Up",
+    "type": "FREIGHT",
+    "priority": 3,
+    "weight": 10,
+    "direction": "UP",
+    "max_speed_kmh": 55,
+    "forecast_uncertainty_min": 0,
+    "schedule": [
+      {
+        "station": "ALJN",
+        "arr": "07:15",
+        "dep": "07:17",
+        "km": 150.0
+      },
+      {
+        "station": "KRJ",
+        "arr": "09:01",
+        "dep": "09:06",
+        "km": 83.1
+      },
+      {
+        "station": "DER",
+        "arr": "10:35",
+        "dep": "10:40",
+        "km": 26.2
+      },
+      {
+        "station": "GZB",
+        "arr": "11:21",
+        "dep": "11:23",
+        "km": 0.0
+      }
+    ]
+  },
+  {
+    "train_no": "BCN_FOOD_DN",
+    "name": "Bcn Food Dn",
+    "type": "FREIGHT",
+    "priority": 3,
+    "weight": 10,
+    "direction": "DOWN",
+    "max_speed_kmh": 50,
+    "forecast_uncertainty_min": 0,
+    "schedule": [
+      {
+        "station": "GZB",
+        "arr": "09:30",
+        "dep": "09:32",
+        "km": 0.0
+      },
+      {
+        "station": "DER",
+        "arr": "10:17",
+        "dep": "10:22",
+        "km": 26.2
+      },
+      {
+        "station": "KRJ",
+        "arr": "11:59",
+        "dep": "12:04",
+        "km": 83.1
+      },
+      {
+        "station": "ALJN",
+        "arr": "13:59",
+        "dep": "14:01",
+        "km": 150.0
+      }
+    ]
+  },
+  {
+    "train_no": "CONTAINER_CONCOR",
+    "name": "Container Concor",
+    "type": "FREIGHT",
+    "priority": 3,
+    "weight": 10,
+    "direction": "DOWN",
+    "max_speed_kmh": 65,
+    "forecast_uncertainty_min": 0,
+    "schedule": [
+      {
+        "station": "DER",
+        "arr": "11:00",
+        "dep": "11:05",
+        "km": 26.2
+      },
+      {
+        "station": "KRJ",
+        "arr": "12:20",
+        "dep": "12:25",
+        "km": 83.1
+      },
+      {
+        "station": "ALJN",
+        "arr": "13:53",
+        "dep": "13:55",
+        "km": 150.0
+      }
+    ]
+  },
+  {
+    "train_no": "BTPN_OIL_UP",
+    "name": "Btpn Oil Up",
+    "type": "FREIGHT",
+    "priority": 3,
+    "weight": 10,
+    "direction": "UP",
+    "max_speed_kmh": 50,
+    "forecast_uncertainty_min": 20,
+    "schedule": [
+      {
+        "station": "ALJN",
+        "arr": "12:20",
+        "dep": "12:22",
+        "km": 150.0
+      },
+      {
+        "station": "SOM",
+        "arr": "13:30",
+        "dep": "13:35",
+        "km": 110.2
+      },
+      {
+        "station": "KRJ",
+        "arr": "14:22",
+        "dep": "14:27",
+        "km": 83.1
+      },
+      {
+        "station": "GZB",
+        "arr": "16:49",
+        "dep": "16:51",
+        "km": 0.0
+      }
+    ]
+  },
+  {
+    "train_no": "BOBRN_STEEL_DN",
+    "name": "Bobrn Steel Dn",
+    "type": "FREIGHT",
+    "priority": 3,
+    "weight": 10,
+    "direction": "DOWN",
+    "max_speed_kmh": 55,
+    "forecast_uncertainty_min": -15,
+    "schedule": [
+      {
+        "station": "GZB",
+        "arr": "14:45",
+        "dep": "14:47",
+        "km": 0.0
+      },
+      {
+        "station": "DKDE",
+        "arr": "15:55",
+        "dep": "16:00",
+        "km": 43.5
+      },
+      {
+        "station": "KRJ",
+        "arr": "17:02",
+        "dep": "17:07",
+        "km": 83.1
+      },
+      {
+        "station": "DAR",
+        "arr": "17:24",
+        "dep": "17:29",
+        "km": 94.6
+      },
+      {
+        "station": "ALJN",
+        "arr": "18:56",
+        "dep": "18:58",
+        "km": 150.0
+      }
+    ]
+  },
+  {
+    "train_no": "BCNA_CEMENT_UP",
+    "name": "Bcna Cement Up",
+    "type": "FREIGHT",
+    "priority": 3,
+    "weight": 10,
+    "direction": "UP",
+    "max_speed_kmh": 45,
+    "forecast_uncertainty_min": 20,
+    "schedule": [
+      {
+        "station": "ALJN",
+        "arr": "16:10",
+        "dep": "16:12",
+        "km": 150.0
+      },
+      {
+        "station": "KLA",
+        "arr": "16:58",
+        "dep": "17:03",
+        "km": 125.8
+      },
+      {
+        "station": "KRJ",
+        "arr": "18:24",
+        "dep": "18:29",
+        "km": 83.1
+      },
+      {
+        "station": "CHL",
+        "arr": "19:17",
+        "dep": "19:22",
+        "km": 58.2
+      },
+      {
+        "station": "GZB",
+        "arr": "21:13",
+        "dep": "21:15",
+        "km": 0.0
+      }
+    ]
+  }
+]

@@ -8,7 +8,7 @@ with Civil as the primary block and TRD/S&T shadowed as secondary
 blocks nested inside it.
 """
 
-from backend.data_generator import load_demands
+from data_generator import load_demands
 
 CLUSTER_RADIUS_KM = 5.0
 DEPARTMENT_PRIORITY = {"CIVIL": 0, "TRD": 1, "SNT": 2}

@@ -21,8 +21,8 @@ Objective:
 
 from ortools.sat.python import cp_model
 
-from backend.data_generator import load_trains, load_demands, load_machinery, load_asset_health
-from backend.clustering import cluster_demands
+from data_generator import load_trains, load_demands, load_machinery, load_asset_health
+from clustering import cluster_demands
 
 SIM_START_MIN = 6 * 60      # 06:00
 SIM_END_MIN = 18 * 60       # 18:00
@@ -113,11 +113,15 @@ def _avg_criticality(corridor, asset_health):
 # ---------------------------------------------------------------------------
 # Main optimizer entry point
 # ---------------------------------------------------------------------------
-def optimize_schedule(injected_delays=None):
+def optimize_schedule(injected_delays=None, excluded_corridor_ids=None):
     trains = load_trains()
     asset_health = load_asset_health()
-    corridors = cluster_demands(load_demands())
+    all_corridors = cluster_demands(load_demands())
     machinery = {m["asset_id"]: m for m in load_machinery()}
+
+    excluded = set(excluded_corridor_ids or [])
+    corridors = [c for c in all_corridors if c["corridor_id"] not in excluded]
+    deferred_corridors = [c["corridor_id"] for c in all_corridors if c["corridor_id"] in excluded]
 
     model = cp_model.CpModel()
 
@@ -159,12 +163,25 @@ def optimize_schedule(injected_delays=None):
         criticality = _avg_criticality(c, asset_health)
         cost_terms.append(-int(criticality * c["duration_min"] // 15))
 
-    # Machine non-overlap constraint (Module C constraint #4)
-    machine_intervals = {}
+    # Machine non-overlap constraint with transit buffer (Module C constraint #4)
+    # Each machine gets a buffer-padded interval so that two jobs on the same machine
+    # are separated by at least MACHINE_TRANSIT_BUFFER_MIN between end-of-job-1 and
+    # start-of-job-2.  We pad the *duration* of the interval used for NoOverlap so
+    # the solver is forced to leave a gap >= MACHINE_TRANSIT_BUFFER_MIN.
+    BUFFER_SLOTS = -(-MACHINE_TRANSIT_BUFFER_MIN // SLOT_MIN)  # ceil(30/15) = 2 slots
+    machine_intervals_buffered = {}
     for c in corridors:
         for m in c["machines_required"]:
-            machine_intervals.setdefault(m, []).append(intervals[c["corridor_id"]])
-    for m, ivs in machine_intervals.items():
+            dur_slots = corridor_meta[c["corridor_id"]]["duration_slots"]
+            padded_dur = dur_slots + BUFFER_SLOTS
+            padded_end = model.NewIntVar(
+                padded_dur, NUM_SLOTS + BUFFER_SLOTS, f"mach_end_{c['corridor_id']}_{m}"
+            )
+            padded_iv = model.NewIntervalVar(
+                starts[c["corridor_id"]], padded_dur, padded_end, f"mach_iv_{c['corridor_id']}_{m}"
+            )
+            machine_intervals_buffered.setdefault(m, []).append(padded_iv)
+    for m, ivs in machine_intervals_buffered.items():
         if len(ivs) > 1:
             model.AddNoOverlap(ivs)
 
@@ -178,6 +195,7 @@ def optimize_schedule(injected_delays=None):
     result = {
         "status": solver.StatusName(status),
         "corridors": [],
+        "deferred_corridors": deferred_corridors,
         "kpis": {},
     }
     if status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):

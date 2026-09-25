@@ -11,9 +11,9 @@ extra non-revenue light-engine movements.
 
 import random
 
-from backend.data_generator import load_machinery, load_trains
-from backend.clustering import cluster_demands, load_demands
-from backend.optimizer import optimize_schedule
+from data_generator import load_machinery, load_trains
+from clustering import cluster_demands, load_demands
+from optimizer import optimize_schedule
 
 random.seed(7)
 
