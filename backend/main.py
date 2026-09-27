@@ -115,26 +115,84 @@ def post_optimize():
     return result
 
 
+def _detect_raw_conflicts(train_no: str, delay_minutes: int, schedule_result: dict) -> list:
+    """
+    Check the *current* schedule for corridors that the given delayed train
+    would collide with — BEFORE the optimizer re-routes them.
+
+    Returns a list of corridor_id strings that conflict with the delayed train.
+    This preserves the "problem state" so trade-off matrices can be built even
+    when the optimizer would silently fix the conflict in its next run.
+    """
+    from optimizer import _train_time_at_km, _min_to_hhmm
+    trains = {t["train_no"]: t for t in load_trains()}
+    train = trains.get(train_no)
+    if not train:
+        return []
+
+    conflicting_ids = []
+    for corridor in schedule_result.get("corridors", []):
+        c_start_min = int(corridor["sanctioned_start"].split(":")[0]) * 60 + \
+                      int(corridor["sanctioned_start"].split(":")[1])
+        c_end_min   = int(corridor["sanctioned_end"].split(":")[0]) * 60 + \
+                      int(corridor["sanctioned_end"].split(":")[1])
+        km_start = corridor["km_start"]
+        km_end   = corridor["km_end"]
+
+        # Find the time the (delayed) train passes through the corridor's km band
+        try:
+            t_enter = _train_time_at_km(train, km_start) + delay_minutes
+            t_exit  = _train_time_at_km(train, km_end)   + delay_minutes
+            if t_enter > t_exit:
+                t_enter, t_exit = t_exit, t_enter
+        except Exception:
+            continue
+
+        # Overlap check: train window vs corridor window
+        if t_enter <= c_end_min and t_exit >= c_start_min:
+            conflicting_ids.append(corridor["corridor_id"])
+
+    return conflicting_ids
+
+
 @app.post("/api/v1/simulate-delay")
 def post_simulate_delay(req: SimulateDelayRequest):
     known_trains = {t["train_no"] for t in load_trains()}
     if req.train_no not in known_trains:
         raise HTTPException(status_code=404, detail=f"Unknown train_no '{req.train_no}'")
 
+    # Step 1: detect collisions against the CURRENT (pre-delay) schedule
+    # so we can build trade-off matrices before the optimizer moves corridors away.
+    pre_schedule = _LAST_SCHEDULE.get("result") or optimize_schedule()
+    raw_conflicts = _detect_raw_conflicts(req.train_no, req.delay_minutes, pre_schedule)
+
+    # Step 2: register the delay and re-optimize (optimizer may resolve some conflicts)
     conflict_report = inject_delay(req.train_no, req.delay_minutes)
     _LAST_SCHEDULE["result"] = conflict_report["schedule"]
 
-    # attach a full trade-off matrix for every detected conflict involving this train
+    # Step 3: build trade-off matrix for every raw collision found in Step 1
     matrices = []
+    seen = set()
+    for corridor_id in raw_conflicts:
+        if corridor_id not in seen:
+            seen.add(corridor_id)
+            m = trade_off_matrix(req.train_no, corridor_id, pre_schedule)
+            if "error" not in m:
+                matrices.append(m)
+
+    # Fall back: if optimizer left residual conflicts, include those too
     for conflict in conflict_report["conflicts"]:
-        if conflict["train_no"] == req.train_no:
-            matrices.append(trade_off_matrix(req.train_no, conflict["corridor_id"], conflict_report["schedule"]))
+        if conflict["train_no"] == req.train_no and conflict["corridor_id"] not in seen:
+            seen.add(conflict["corridor_id"])
+            m = trade_off_matrix(req.train_no, conflict["corridor_id"], conflict_report["schedule"])
+            if "error" not in m:
+                matrices.append(m)
 
     return {
         "train_no": req.train_no,
         "injected_delay_minutes": req.delay_minutes,
         "total_injected_delay_minutes": conflict_report["injected_delays"].get(req.train_no, 0),
-        "conflicts_detected": conflict_report["conflicts"],
+        "conflicts_detected": raw_conflicts if raw_conflicts else conflict_report["conflicts"],
         "trade_off_matrices": matrices,
     }
 
