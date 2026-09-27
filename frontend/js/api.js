@@ -1,4 +1,4 @@
-const API_BASE = 'http://localhost:8000';
+const API_BASE = 'https://nerv-railsync.onrender.com';
 
 async function api(path, opts = {}) {
     const res = await fetch(API_BASE + path, opts);
