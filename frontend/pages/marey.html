@@ -211,16 +211,97 @@ function svgEl(tag, attrs) {
     for(const k in attrs) el.setAttribute(k,attrs[k]); return el;
 }
 
-// init — loads network + trains, draws the Marey chart, then WAITS for user
-// to click "Run AI Corridor Optimization". Does NOT auto-optimize.
+function isPageReload() {
+    try {
+        const navEntries = performance.getEntriesByType ? performance.getEntriesByType('navigation') : [];
+        if (navEntries.length > 0 && navEntries[0].type === 'reload') {
+            return true;
+        }
+        if (window.performance && window.performance.navigation && window.performance.navigation.type === 1) {
+            return true;
+        }
+    } catch(e) {}
+    return false;
+}
+
+// Save / restore state in sessionStorage so tab navigation retains active optimization
+function saveMareyState() {
+    if(!state.lastSchedule) return;
+    const data = {
+        lastSchedule: state.lastSchedule,
+        injectedDelays: state.injectedDelays,
+        currentMatrices: state.currentMatrices
+    };
+    try {
+        sessionStorage.setItem('railsync_marey_optimized', JSON.stringify(data));
+        sessionStorage.setItem('railsync_marey_optimized_flag', 'true');
+    } catch(e) {
+        console.error('Failed to save state', e);
+    }
+}
+
+function restoreMareyState() {
+    try {
+        const raw = sessionStorage.getItem('railsync_marey_optimized');
+        if(!raw) return false;
+        const data = JSON.parse(raw);
+        if(!data || !data.lastSchedule || !data.lastSchedule.corridors) return false;
+
+        state.lastSchedule = data.lastSchedule;
+        state.injectedDelays = data.injectedDelays || {};
+        state.currentMatrices = data.currentMatrices || [];
+
+        drawTrains(state.injectedDelays);
+        clearIdleCta();
+        drawCorridors(state.lastSchedule.corridors, false);
+        highlightConflictTrains(state.lastSchedule.corridors);
+
+        const kpis = state.lastSchedule.kpis || {};
+        document.getElementById('kpiDelayPrevented').innerHTML =
+            (kpis.total_secondary_delay_prevented_min ?? 0) + '<span class="unit">min</span>';
+        document.getElementById('kpiUtilization').innerHTML =
+            (kpis.corridor_utilization_rate_pct ?? 0) + '<span class="unit">%</span>';
+
+        if(state.currentMatrices && state.currentMatrices.length) {
+            const banner = document.getElementById('conflictBanner');
+            document.getElementById('conflictBannerText').textContent =
+                'Active conflicts detected. Review options to arbitrate.';
+            banner.classList.add('show');
+        }
+
+        return true;
+    } catch(e) {
+        console.error('Failed to restore state', e);
+        return false;
+    }
+}
+
+// init — loads network + trains, draws the Marey chart. Restores active optimization if present in session, else shows idle CTA.
 async function init() {
     try {
+        // Clear any stale localStorage items
+        try { localStorage.removeItem('railsync_marey_optimized'); } catch(e) {}
+
+        // If the user reloaded/refreshed the browser page (F5), clear session storage so it starts fresh
+        if (isPageReload()) {
+            try {
+                sessionStorage.removeItem('railsync_marey_optimized');
+                sessionStorage.removeItem('railsync_marey_optimized_flag');
+                sessionStorage.removeItem('railsync_planning_optimized');
+            } catch(e) {}
+        }
+
         const [network,trains] = await Promise.all([api('/api/v1/network'), api('/api/v1/trains')]);
         state.network=network; state.trains=trains;
         updateConnectionStatus(true, 'live \u00b7 '+network.stations.length+' stations');
         populateTrainSelect(); drawAxes(); drawTrains();
-        // Show idle CTA — corridors are only drawn after user clicks the button
-        showIdleCta();
+        
+        const restored = restoreMareyState();
+        if(!restored) {
+            showIdleCta();
+        }
+        await loadKpis();
+
         // Start live overlays (TMS dots + SCADA faults) without optimising
         startRealtimePoll(fetchRealtimeData, 30000);
         fetchScadaData();
@@ -564,6 +645,7 @@ async function runOptimize() {
             result.kpis.corridor_utilization_rate_pct+'% utilization',
             'success'
         );
+        saveMareyState();
     } catch(e) {
         showToast('Optimization failed: '+e.message,'error'); console.error(e);
     } finally {
@@ -608,6 +690,7 @@ async function simulateIncident() {
             banner.classList.add('show');
         } else { banner.classList.remove('show'); }
         await loadKpis();
+        saveMareyState();
     } catch(e) { showToast('Simulation failed','error'); }
     finally { btn.disabled=false; btn.textContent='Simulate Incident'; }
 }
@@ -677,6 +760,7 @@ async function applyArbitration(trainNo,corridorId,option,btn) {
         document.getElementById('modalOverlay').classList.remove('show');
         document.getElementById('conflictBanner').classList.remove('show');
         await runOptimize(); await loadKpis(); drawTrains(state.injectedDelays);
+        saveMareyState();
         showToast('Arbitration applied successfully','success');
     } catch(e) {
         console.error(e); btn.textContent='Failed \u2014 retry'; btn.disabled=false;
@@ -685,12 +769,21 @@ async function applyArbitration(trainNo,corridorId,option,btn) {
 }
 
 async function resetSession() {
-    await apiPost('/api/v1/reset-session',{});
-    state.injectedDelays={}; state.currentMatrices=[];
+    try {
+        await apiPost('/api/v1/reset-session',{});
+    } catch(e) {}
+    localStorage.removeItem('railsync_marey_optimized');
+    sessionStorage.removeItem('railsync_marey_optimized');
+    sessionStorage.removeItem('railsync_marey_optimized_flag');
+    sessionStorage.removeItem('railsync_planning_optimized');
+    state.lastSchedule=null; state.injectedDelays={}; state.currentMatrices=[];
     document.getElementById('conflictBanner').classList.remove('show');
     document.getElementById('summaryOverlay').style.display='none';
     document.getElementById('ghostLayer').innerHTML='';
-    drawTrains(); await runOptimize(); await loadKpis();
+    document.getElementById('corridorLayer').innerHTML='';
+    drawTrains();
+    showIdleCta();
+    await loadKpis();
     showToast('Session reset','info');
 }
 

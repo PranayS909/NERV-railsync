@@ -11,23 +11,42 @@ __pycache__/
 *.py[cod]
 *$py.class
 
-# Pytest / Testing
+# Pytest / Testing / Tooling Caches
 .pytest_cache/
 .coverage
 htmlcov/
+.mypy_cache/
+.ruff_cache/
 
-# IDEs and Editors
+# Environment Variables & Secrets
+.env
+.env.*
+!.env.example
+
+# Local Databases & Data Dumps
+*.db
+*.sqlite
+*.sqlite3
+*.log
+tmp/
+
+# Node & Frontend Build Tools
+node_modules/
+dist/
+build/
+.cache/
+
+# IDEs, Editors & OS Files
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
-
-# Operating System Files
 .DS_Store
 Thumbs.db
 ehthumbs.db
 
-# Logs & Temporary Files
-*.log
-tmp/
+# Agent & Scratch Files
+.gemini/
+scratch_*.py
+write_marey.py
