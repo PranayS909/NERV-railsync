@@ -202,7 +202,7 @@ def _build_demands():
         {
             "demand_id": "DEM-CIV-03", "department": "CIVIL", "line": "COMMON",
             "station": "DKDE", "km_start": 43.5, "km_end": 43.5, "work_nature": "Turnout Renewal",
-            "duration_min": None, "machine": None, "fouling": True,
+            "duration_min": 150, "machine": None, "fouling": True,
             "ohe_block_required": False, "tsr": False, "tsr_speed_kmh": None,
             "multi_day": True, "multi_day_total": 3, "multi_day_index": 1,
         },
@@ -217,7 +217,7 @@ def _build_demands():
         {
             "demand_id": "DEM-TRD-02", "department": "TRD", "line": "UP",
             "km_start": 86.0, "km_end": 87.5, "work_nature": "Contact Wire Dropper Adjustment",
-            "duration_min": None, "machine": None, "fouling": False,
+            "duration_min": 90, "machine": None, "fouling": False,
             "ohe_block_required": True, "diesel_through_allowed": True, "tsr": False,
             "tsr_speed_kmh": None, "multi_day": False,
             "overlaps_with": "DEM-CIV-02",
@@ -250,7 +250,7 @@ def _build_demands():
         {
             "demand_id": "DEM-TRD-03", "department": "TRD", "line": "DOWN",
             "km_start": 5.0, "km_end": 7.0, "work_nature": "OHE Mast Painting",
-            "duration_min": None, "machine": None, "fouling": False,
+            "duration_min": 100, "machine": None, "fouling": False,
             "ohe_block_required": True, "diesel_through_allowed": True, "tsr": False,
             "tsr_speed_kmh": None, "multi_day": False,
         },
