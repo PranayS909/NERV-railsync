@@ -109,7 +109,7 @@ def _generate_mock():
             "km_start": 80.0 + i,
             "km_end": 82.0 + i,
             "work_nature": "Track Maintenance",
-            "duration_min": None if i % 3 == 0 else 180,
+            "duration_min": 180,
             "machine": f"BCM-{i}",
             "fouling": True,
             "ohe_block_required": False,
