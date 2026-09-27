@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>RailSync-AI — Machine Fleet</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../css/railsync.css">
+</head>
+<body data-role="controller">
+
+<header>
+    <div class="brand">
+        <span class="mark">◆</span>
+        <span class="name">RailSync-AI</span>
+    </div>
+    <nav class="main-nav">
+        <a href="marey.html" class="nav-link">Marey Chart</a>
+        <a href="planning.html" class="nav-link">Block Planning</a>
+        <a href="fleet.html" class="nav-link active">Machine Fleet</a>
+        <a href="asset-health.html" class="nav-link">Asset Health</a>
+        <a href="arbitration.html" class="nav-link">Arbitration Log</a>
+    </nav>
+    <div class="header-controls">
+        <select id="roleToggle" class="role-select">
+            <option value="controller">Section Controller</option>
+            <option value="drm">DRM / Sr.DEN</option>
+        </select>
+        <div class="clock" id="liveClock">00:00:00</div>
+        <div class="status" id="statusIndicator"><span class="dot"></span><span id="statusText">connecting…</span></div>
+    </div>
+</header>
+
+<main>
+    <div class="kpi-row" style="grid-template-columns: repeat(2, 1fr); margin-bottom: 20px;">
+        <div class="kpi">
+            <div class="label">Dead-mileage Saved</div>
+            <div class="value" id="kpiDeadMileage">—<span class="unit">km</span></div>
+        </div>
+        <div class="kpi">
+            <div class="label">Total Fleet Active</div>
+            <div class="value" id="kpiFleetCount">—</div>
+        </div>
+    </div>
+
+    <h2>Machine Fleet Status</h2>
+    <div class="card-grid" id="fleetGrid">
+        <!-- Cards injected via JS -->
+    </div>
+
+    <h2>Crew & Loco Roster (Integration)</h2>
+    <div class="table-wrapper">
+        <table id="crewTable">
+            <thead>
+                <tr>
+                    <th>Crew ID / Name</th>
+                    <th>Linked Train / Asset</th>
+                    <th>Depot</th>
+                    <th>Duty Hours Remaining</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Rows injected via JS -->
+            </tbody>
+        </table>
+    </div>
+</main>
+
+<script src="../js/api.js"></script>
+<script>
+async function init() {
+    updateConnectionStatus(true, 'connected');
+    await loadFleet();
+    await loadKpis();
+    await loadCrew();
+}
+
+async function loadFleet() {
+    try {
+        const data = await api('/api/v1/machinery');
+        const grid = document.getElementById('fleetGrid');
+        grid.innerHTML = '';
+        
+        const fleet = data.fleet || [];
+        document.getElementById('kpiFleetCount').textContent = fleet.length;
+
+        fleet.forEach(m => {
+            const card = document.createElement('div');
+            card.className = 'card';
+            
+            let statusBadge = 'badge-grey';
+            if (m.status === 'IDLE') statusBadge = 'badge-green';
+            if (m.status === 'TRANSIT') statusBadge = 'badge-blue';
+            if (m.status === 'WORKING') statusBadge = 'badge-amber';
+            
+            card.innerHTML = `
+                <div class="card-header">
+                    <div>
+                        <h3 class="card-title">${m.asset_id}</h3>
+                        <div class="card-subtitle">${m.type}</div>
+                    </div>
+                    <span class="badge ${statusBadge}">${m.status}</span>
+                </div>
+                <div style="font-size: 13px; color: var(--text-dim); margin-top: 10px;">
+                    <div><strong>Current Location:</strong> km ${m.current_km}</div>
+                    <div><strong>Base Siding:</strong> ${m.base_siding || 'N/A'}</div>
+                </div>
+                <div style="margin-top: 15px;">
+                    <div style="font-size: 11px; margin-bottom: 4px; color: var(--text-dim);">Daily Schedule</div>
+                    <div style="display: flex; height: 12px; background: var(--panel-2); border-radius: 6px; overflow: hidden;">
+                        <div style="flex: 2; background: var(--blue);" title="Transit"></div>
+                        <div style="flex: 5; background: var(--amber);" title="Working"></div>
+                        <div style="flex: 3; background: var(--green);" title="Idle"></div>
+                    </div>
+                </div>
+            `;
+            grid.appendChild(card);
+        });
+    } catch(e) {
+        showToast('Failed to load machinery data', 'error');
+    }
+}
+
+async function loadKpis() {
+    try {
+        const kpis = await api('/api/v1/kpis');
+        document.getElementById('kpiDeadMileage').innerHTML = `${kpis.dead_mileage_saved_km}<span class="unit">km</span>`;
+    } catch(e) {}
+}
+
+async function loadCrew() {
+    try {
+        const data = await api('/api/v1/ingest/crew');
+        const tbody = document.querySelector('#crewTable tbody');
+        tbody.innerHTML = '';
+        
+        data.forEach(c => {
+            const tr = document.createElement('tr');
+            const hoursLeft = c.duty_hours_remaining;
+            const hoursClass = hoursLeft < 2 ? 'color: var(--red); font-weight: bold;' : '';
+            
+            tr.innerHTML = `
+                <td><div style="font-weight: 500;">${c.crew_id}</div><div style="font-size: 11px; color: var(--text-dim);">${c.name || ''}</div></td>
+                <td><span class="badge badge-grey">${c.linked_asset || 'UNASSIGNED'}</span></td>
+                <td>${c.depot}</td>
+                <td style="${hoursClass}">${hoursLeft.toFixed(1)} hrs</td>
+                <td><span class="badge ${c.status === 'ON_DUTY' ? 'badge-green' : 'badge-grey'}">${c.status}</span></td>
+            `;
+            tbody.appendChild(tr);
+        });
+    } catch(e) {
+        // Silently fail if endpoint not fully ready
+    }
+}
+
+init();
+</script>
+</body>
+</html>

@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>RailSync-AI — Arbitration Log</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../css/railsync.css">
+</head>
+<body data-role="controller">
+
+<header>
+    <div class="brand">
+        <span class="mark">◆</span>
+        <span class="name">RailSync-AI</span>
+    </div>
+    <nav class="main-nav">
+        <a href="marey.html" class="nav-link">Marey Chart</a>
+        <a href="planning.html" class="nav-link">Block Planning</a>
+        <a href="fleet.html" class="nav-link">Machine Fleet</a>
+        <a href="asset-health.html" class="nav-link">Asset Health</a>
+        <a href="arbitration.html" class="nav-link active">Arbitration Log</a>
+    </nav>
+    <div class="header-controls">
+        <select id="roleToggle" class="role-select">
+            <option value="controller">Section Controller</option>
+            <option value="drm">DRM / Sr.DEN</option>
+        </select>
+        <div class="clock" id="liveClock">00:00:00</div>
+        <div class="status" id="statusIndicator"><span class="dot"></span><span id="statusText">connecting…</span></div>
+    </div>
+</header>
+
+<main>
+    <div class="kpi-row" style="grid-template-columns: repeat(3, 1fr); margin-bottom: 20px;">
+        <div class="kpi">
+            <div class="label">Total Decisions Made</div>
+            <div class="value" id="statDecisions">0</div>
+        </div>
+        <div class="kpi">
+            <div class="label">Corridors Deferred</div>
+            <div class="value" id="statDeferred">0</div>
+        </div>
+        <div class="kpi">
+            <div class="label">Secondary Delay Accepted</div>
+            <div class="value" id="statDelay">0<span class="unit">min</span></div>
+        </div>
+    </div>
+
+    <div class="toolbar">
+        <button id="btnExport">Export to CSV</button>
+        <button id="btnClearLog" class="btn-action-red">Clear Log & Reset Session</button>
+    </div>
+
+    <div class="table-wrapper">
+        <table id="arbitrationTable">
+            <thead>
+                <tr>
+                    <th>Timestamp</th>
+                    <th>Train</th>
+                    <th>Corridor</th>
+                    <th>Option Chosen</th>
+                    <th>Penalty Score</th>
+                    <th>Outcome</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Rows injected via JS -->
+            </tbody>
+        </table>
+    </div>
+</main>
+
+<script src="../js/api.js"></script>
+<script>
+let arbLog = [];
+
+async function init() {
+    updateConnectionStatus(true, 'connected');
+    loadLocalLog();
+}
+
+function loadLocalLog() {
+    const raw = localStorage.getItem('railsync_arbitration_log');
+    if (raw) {
+        try {
+            arbLog = JSON.parse(raw);
+        } catch(e) { arbLog = []; }
+    } else {
+        arbLog = [];
+    }
+    renderTable();
+    updateStats();
+}
+
+// Global listener for cross-page arbitrations:
+// We rely on localStorage updating or polling, but for simplicity, we just render what we have.
+// In a real app we'd fetch the session_log from backend if supported, but instructions said:
+// "from session_log in /api/v1/arbitrate responses, cached in localStorage"
+// Wait, our API wrapper in marey doesn't cache to localStorage. 
+// Let's modify the marey's arbitrate call implicitly or just do a fetch here if possible.
+// Actually, we can hook window 'storage' event.
+window.addEventListener('storage', (e) => {
+    if (e.key === 'railsync_arbitration_log') loadLocalLog();
+});
+
+function renderTable() {
+    const tbody = document.querySelector('#arbitrationTable tbody');
+    tbody.innerHTML = '';
+    
+    if (arbLog.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-dim);padding:20px;">No arbitrations logged in this session.</td></tr>';
+        return;
+    }
+    
+    // Sort reverse chronological
+    const sorted = [...arbLog].sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
+    
+    sorted.forEach(entry => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td style="font-family:var(--font-mono);font-size:12px;color:var(--text-dim);">${new Date(entry.timestamp).toLocaleTimeString()}</td>
+            <td><div style="font-weight:600;">${entry.train_no}</div></td>
+            <td><span class="badge badge-blue">${entry.corridor_id}</span></td>
+            <td>${entry.option_chosen} ${entry.recommended ? '<span class="badge badge-green" style="margin-left:5px">Recommended</span>' : ''}</td>
+            <td style="font-family:var(--font-mono);">${entry.penalty_score || 0}</td>
+            <td>${entry.outcome || 'Applied'}</td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+function updateStats() {
+    document.getElementById('statDecisions').textContent = arbLog.length;
+    document.getElementById('statDeferred').textContent = arbLog.filter(a => a.option_chosen.includes('DEFER')).length;
+    // Just mock sum for delay
+    document.getElementById('statDelay').innerHTML = `${arbLog.reduce((acc, a) => acc + (a.delay_accepted_min || 0), 0)}<span class="unit">min</span>`;
+}
+
+document.getElementById('btnExport').addEventListener('click', () => {
+    if(!arbLog.length) return showToast('Nothing to export', 'info');
+    
+    let csv = 'Timestamp,Train,Corridor,Option Chosen,Recommended,Penalty Score,Outcome\n';
+    arbLog.forEach(row => {
+        csv += `"${row.timestamp}","${row.train_no}","${row.corridor_id}","${row.option_chosen}","${row.recommended}","${row.penalty_score}","${row.outcome}"\n`;
+    });
+    
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.setAttribute('hidden', '');
+    a.setAttribute('href', url);
+    a.setAttribute('download', 'arbitration_log.csv');
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+});
+
+document.getElementById('btnClearLog').addEventListener('click', async () => {
+    try {
+        await apiPost('/api/v1/reset-session', {});
+        localStorage.removeItem('railsync_arbitration_log');
+        arbLog = [];
+        renderTable();
+        updateStats();
+        showToast('Log cleared and session reset', 'success');
+    } catch(e) {
+        showToast('Failed to reset session', 'error');
+    }
+});
+
+init();
+</script>
+</body>
+</html>

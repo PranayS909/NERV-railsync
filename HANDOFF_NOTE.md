@@ -1,11 +1,10 @@
-# RailSync-AI — Handoff Note (Backend + Frontend Complete + Test Suite)
+# RailSync-AI — Handoff Note (v2.0 — Full Integration + Multi-Page Dashboard)
 
-Status as of this session: **backend, frontend, and automated pytest suite all complete.**
-This is now a fully regression-tested MVP: `uvicorn` up on :8000 → open `frontend/index.html` →
-optimize runs, Marey chart renders real train lines + sanctioned corridors, delay injection and
-arbitration round-trip correctly. All 3 previously noted bugs are now **fully implemented** (not
-just smoke-tested) and locked in by 46 automated tests. Use this note to resume in a fresh
-conversation without re-deriving context — attach it + the code.
+Status as of this session: **v2.0 complete — ingestion adapters, multi-page frontend, and 53 automated tests.**
+This is now a production-credible demo: 6 mock ingestion adapters (BDMS, TMS/NTES, FOIS,
+SCADA/OHE, CREW/LOCO, Asset Health) feeding the optimizer through a unified `IngestStore`,
+a 5-page dark-theme dashboard with role-based views (Section Controller / DRM-Sr.DEN), and
+53 passing regression tests. Use this note to resume in a fresh conversation — attach it + the code.
 
 ## What's done
 
@@ -105,7 +104,7 @@ confirmed the network/trains/optimize/kpis calls return the shapes the frontend 
 ## Test Suite (`backend/tests/`)
 
 **Run:** `pytest backend/tests/ -v`  
-**Result (2026-09-25):** 46 passed, 0 failed, 1 deprecation warning (httpx2 — cosmetic only), 3.0 s
+**Result (2026-09-25):** 53 passed, 0 failed, 2.1 s
 
 | File | Tests | What it covers |
 |------|-------|----------------|
@@ -113,18 +112,58 @@ confirmed the network/trains/optimize/kpis calls return the shapes the frontend 
 | `tests/test_optimizer.py` | 8 | OPTIMAL/FEASIBLE status, machine transit buffer regression (mock-patched 2-job/1-machine), fouling conflict wiring, `excluded_corridor_ids` / `deferred_corridors` round-trip |
 | `tests/test_arbitration.py` | 12 | `inject_delay()` accumulation, option-3 fouling infeasibility, Option-2 defer-persist regression, full `reset_session()` coverage |
 | `tests/test_api.py` | 16 | Every GET/POST → 200 + expected keys, 404 for unknown train, 400 for invalid option, session-state regression (Option 2 → re-optimize stays excluded) |
+| `tests/test_ingestion.py` | 7 | All 6 adapters' `fetch_live()` + `to_internal()` + `IngestStore.refresh_all()` + `.status()` |
 
-Three bugs that were "verified by hand" in the previous session are now fully implemented in code
-and covered by regression tests:
+## v2.0 — Ingestion Layer (`backend/ingestion/`)
 
-1. **Machine transit buffer** (`optimizer.py`): `AddNoOverlap` now uses buffer-padded intervals
-   (`duration_slots + 2` slots = +30 min) so back-to-back same-machine jobs are always separated
-   by ≥ `MACHINE_TRANSIT_BUFFER_MIN`.
+6 mock adapters that generate data in the exact schemas of their respective IR systems.
+Controlled by `INGESTION_MODE=mock|live` env var — swapping in the real API is a config change.
 
-2. **Option 2 defer** (`arbitration.py`): `apply_arbitration(option=2)` now writes the
-   `corridor_id` into `_SESSION["deferred_corridors"]`; `detect_conflicts()` and `get_session_state()`
-   propagate it to `optimize_schedule(excluded_corridor_ids=...)`.
+| File | System | What it mocks |
+|------|--------|---------------|
+| `bdms_adapter.py` | BDMS | Block demand work orders (10-15 demands with dept, km, duration, machine, fouling/OHE/TSR flags) |
+| `tms_adapter.py` | TMS/NTES | Live train positions, current delay, speed, direction for all 14 trains |
+| `fois_adapter.py` | FOIS | Freight rake forecasts with commodity, tonnage, uncertainty windows |
+| `scada_adapter.py` | SCADA/OHE | ~30 OHE mast/dropper/breaker telemetry items with voltage, current, temp, fault flags |
+| `crew_adapter.py` | CREW/LOCO | 8-10 crew members with duty hours, linked locos, home depots |
+| `asset_health_adapter.py` | TGC/OMS | Per-5km segment TGI, unevenness, twist, gauge, OMS readings |
 
-3. **`/optimize` session-state** (`main.py`): `POST /api/v1/optimize` now calls `get_session_state()`
-   before solving, so injected delays and deferred corridors are always respected on every
-   post-arbitration refresh.
+**`IngestStore`** (`ingest_store.py`): singleton in-memory store. `refresh_all()` pulls all 6
+adapters, `status()` returns row counts + last-refresh timestamp.
+
+**New endpoints:**
+```
+GET  /api/v1/ingest/bdms|tms|fois|scada|crew|asset-health
+POST /api/v1/ingest/refresh-all    → pull all 6 sources, re-cluster, re-solve
+GET  /api/v1/ingest/status         → last-refresh timestamp + row counts
+```
+
+## v2.0 — Multi-Page Frontend (`frontend/`)
+
+5-page dark-theme dashboard with role-based views (Section Controller / DRM-Sr.DEN toggle).
+
+| File | Page | Key features |
+|------|------|--------------|
+| `index.html` | Nav shell | Logo, nav links, role toggle, live IST clock, auto-redirect to Marey |
+| `pages/marey.html` | Live Marey Chart | Ported + enhanced: live TMS train dots (30s poll), SCADA fault pins, DRM plan overlay, full arbitration flow |
+| `pages/planning.html` | Block Planning | BDMS demand table + Gantt chart per machine, DRM approve/defer buttons |
+| `pages/fleet.html` | Machine Fleet | Machine cards + timeline + dead-mileage KPIs + CREW/LOCO roster |
+| `pages/asset-health.html` | Asset Health | TGI heatmap strip, OMS spike chart with 0.20g threshold, SCADA equipment table |
+| `pages/arbitration.html` | Arbitration Log | Decision table from localStorage, stats bar, CSV export, session clear |
+
+**Shared files:** `css/railsync.css` (full design system), `js/api.js` (API wrapper + toast + clock), `js/realtime.js` (TMS polling loop)
+
+## How to run
+
+```bash
+# Terminal 1 — Backend
+cd "d:\Major Projects\NERV-railsync"
+.\backend\venv\Scripts\Activate.ps1
+uvicorn backend.main:app --reload --port 8000
+
+# Terminal 2 — Open frontend (any page)
+Start-Process "frontend\index.html"
+
+# Run tests
+pytest backend/tests/ -v
+```

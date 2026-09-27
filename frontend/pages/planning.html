@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>RailSync-AI — Block Planning</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../css/railsync.css">
+</head>
+<body data-role="controller">
+
+<header>
+    <div class="brand">
+        <span class="mark">◆</span>
+        <span class="name">RailSync-AI</span>
+    </div>
+    <nav class="main-nav">
+        <a href="marey.html" class="nav-link">Marey Chart</a>
+        <a href="planning.html" class="nav-link active">Block Planning</a>
+        <a href="fleet.html" class="nav-link">Machine Fleet</a>
+        <a href="asset-health.html" class="nav-link">Asset Health</a>
+        <a href="arbitration.html" class="nav-link">Arbitration Log</a>
+    </nav>
+    <div class="header-controls">
+        <select id="roleToggle" class="role-select">
+            <option value="controller">Section Controller</option>
+            <option value="drm">DRM / Sr.DEN</option>
+        </select>
+        <div class="clock" id="liveClock">00:00:00</div>
+        <div class="status" id="statusIndicator"><span class="dot"></span><span id="statusText">connecting…</span></div>
+    </div>
+</header>
+
+<main>
+    <div class="toolbar">
+        <button id="btnRefreshBDMS">Refresh from BDMS</button>
+        <button class="btn-primary" id="btnOptimizeDemands">Cluster & Optimize</button>
+    </div>
+
+    <div class="table-wrapper">
+        <table id="demandsTable">
+            <thead>
+                <tr>
+                    <th>Demand ID</th>
+                    <th>Dept</th>
+                    <th>Km Range</th>
+                    <th>Work Nature</th>
+                    <th>Duration</th>
+                    <th>Machine</th>
+                    <th>Status</th>
+                    <th class="drm-only">DRM Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Rows injected via JS -->
+            </tbody>
+        </table>
+    </div>
+
+    <div class="chart-panel">
+        <h2>Clustered Machine Corridors (Timeline)</h2>
+        <div id="ganttWrap" style="overflow-x: auto;">
+            <svg id="ganttChart" width="1180" height="300"></svg>
+        </div>
+    </div>
+</main>
+
+<script src="../js/api.js"></script>
+<script>
+let demands = [];
+let corridors = [];
+
+async function init() {
+    updateConnectionStatus(true, 'connected');
+    await loadDemands();
+}
+
+async function loadDemands() {
+    try {
+        const data = await api('/api/v1/demands').catch(() => api('/api/v1/ingest/bdms'));
+        demands = data.raw_demands || [];
+        corridors = data.clustered_corridors || [];
+        renderTable();
+        renderGantt();
+    } catch(e) {
+        showToast('Failed to load demands', 'error');
+    }
+}
+
+function renderTable() {
+    const tbody = document.querySelector('#demandsTable tbody');
+    tbody.innerHTML = '';
+    
+    demands.forEach(d => {
+        const tr = document.createElement('tr');
+        let statusBadge = '';
+        if (d.status === 'SANCTIONED') statusBadge = 'badge-green';
+        else if (d.status === 'APPROVED') statusBadge = 'badge-amber';
+        else if (d.status === 'DEFERRED') statusBadge = 'badge-red';
+        else statusBadge = 'badge-grey';
+
+        tr.innerHTML = `
+            <td><div style="font-family:var(--font-mono);color:var(--amber)">${d.demand_id || d.id}</div></td>
+            <td><span class="badge ${d.department === 'CIVIL' ? 'badge-grey' : (d.department === 'TRD' ? 'badge-amber' : 'badge-blue')}">${d.department}</span></td>
+            <td>${d.km_start} - ${d.km_end}</td>
+            <td>${d.work_nature || 'Maintenance'}</td>
+            <td>${d.duration_minutes || d.duration} min</td>
+            <td>${(d.machines_required||[]).join(', ') || 'N/A'}</td>
+            <td><span class="badge ${statusBadge}">${d.status || 'PENDING'}</span></td>
+            <td class="drm-only">
+                <button class="btn-small btn-action-green" onclick="handleDrmAction('${d.demand_id}', 'approve')">Approve</button>
+                <button class="btn-small btn-action-red" onclick="handleDrmAction('${d.demand_id}', 'defer')">Defer</button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+function renderGantt() {
+    const svg = document.getElementById('ganttChart');
+    svg.innerHTML = '';
+    
+    if (!corridors.length) return;
+    
+    // Distinct machines from corridors
+    const machines = [...new Set(corridors.flatMap(c => c.machines_required || []))].filter(Boolean);
+    if (!machines.length) machines.push('Manual');
+    
+    const ROW_H = 40;
+    const CHART_H = Math.max(300, machines.length * ROW_H + 50);
+    svg.setAttribute('height', CHART_H);
+    
+    const SIM_START = 6 * 60;
+    const SIM_END = 18 * 60;
+    const W = 1180, MARGIN_L = 100, MARGIN_R = 20, MARGIN_T = 20;
+    const PLOT_W = W - MARGIN_L - MARGIN_R;
+    
+    function timeToX(min) { return MARGIN_L + ((min - SIM_START) / (SIM_END - SIM_START)) * PLOT_W; }
+    function hhmmToMin(t) { const [h,m] = (t||'00:00').split(':').map(Number); return h*60+m; }
+    
+    // Time grid
+    for(let m=SIM_START; m<=SIM_END; m+=60) {
+        const x = timeToX(m);
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        line.setAttribute('x1', x); line.setAttribute('y1', MARGIN_T);
+        line.setAttribute('x2', x); line.setAttribute('y2', CHART_H);
+        line.setAttribute('class', 'grid-line');
+        svg.appendChild(line);
+        
+        const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        label.setAttribute('x', x); label.setAttribute('y', 14);
+        label.setAttribute('class', 'axis-label');
+        label.setAttribute('text-anchor', 'middle');
+        label.textContent = `${String(Math.floor(m/60)).padStart(2,'0')}:00`;
+        svg.appendChild(label);
+    }
+    
+    // Machines Y axis
+    machines.forEach((mac, i) => {
+        const y = MARGIN_T + i * ROW_H + ROW_H/2;
+        const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        label.setAttribute('x', MARGIN_L - 10); label.setAttribute('y', y+4);
+        label.setAttribute('class', 'station-label');
+        label.setAttribute('text-anchor', 'end');
+        label.textContent = mac;
+        svg.appendChild(label);
+        
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        line.setAttribute('x1', MARGIN_L); line.setAttribute('y1', MARGIN_T + (i+1)*ROW_H);
+        line.setAttribute('x2', W - MARGIN_R); line.setAttribute('y2', MARGIN_T + (i+1)*ROW_H);
+        line.setAttribute('class', 'station-line');
+        svg.appendChild(line);
+    });
+    
+    // Draw corridors
+    corridors.forEach(c => {
+        const mList = (c.machines_required && c.machines_required.length) ? c.machines_required : ['Manual'];
+        mList.forEach(mac => {
+            const mIdx = machines.indexOf(mac);
+            if (mIdx < 0) return;
+            
+            const startX = timeToX(hhmmToMin(c.sanctioned_start));
+            const endX = timeToX(hhmmToMin(c.sanctioned_end));
+            const y = MARGIN_T + mIdx * ROW_H + 8;
+            
+            const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+            rect.setAttribute('x', startX);
+            rect.setAttribute('y', y);
+            rect.setAttribute('width', Math.max(endX - startX, 4));
+            rect.setAttribute('height', ROW_H - 16);
+            rect.setAttribute('fill', 'var(--blue)');
+            rect.setAttribute('opacity', '0.7');
+            svg.appendChild(rect);
+            
+            const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            text.setAttribute('x', startX + 4);
+            text.setAttribute('y', y + 15);
+            text.setAttribute('class', 'axis-label');
+            text.setAttribute('fill', 'var(--bg)');
+            text.textContent = c.corridor_id;
+            svg.appendChild(text);
+        });
+    });
+}
+
+document.getElementById('btnRefreshBDMS').addEventListener('click', async (e) => {
+    e.target.disabled = true; e.target.textContent = 'Refreshing...';
+    try {
+        await apiPost('/api/v1/ingest/refresh-all', {});
+        await loadDemands();
+        showToast('Refreshed from upstream sources', 'success');
+    } catch(err) {
+        showToast('Refresh failed', 'error');
+    } finally {
+        e.target.disabled = false; e.target.textContent = 'Refresh from BDMS';
+    }
+});
+
+document.getElementById('btnOptimizeDemands').addEventListener('click', async (e) => {
+    e.target.disabled = true; e.target.textContent = 'Optimizing...';
+    try {
+        await apiPost('/api/v1/optimize', {});
+        await loadDemands();
+        showToast('Optimization complete', 'success');
+    } catch(err) {
+        showToast('Optimization failed', 'error');
+    } finally {
+        e.target.disabled = false; e.target.textContent = 'Cluster & Optimize';
+    }
+});
+
+function handleDrmAction(id, action) {
+    showToast(`Demand ${id} ${action}d (mock)`, 'info');
+}
+
+init();
+</script>
+</body>
+</html>

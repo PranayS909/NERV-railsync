@@ -63,6 +63,9 @@ def root():
         "endpoints": [
             "/api/v1/network", "/api/v1/demands", "/api/v1/machinery",
             "POST /api/v1/optimize", "POST /api/v1/simulate-delay", "POST /api/v1/arbitrate",
+            "/api/v1/ingest/bdms", "/api/v1/ingest/tms", "/api/v1/ingest/fois",
+            "/api/v1/ingest/scada", "/api/v1/ingest/crew", "/api/v1/ingest/asset-health",
+            "POST /api/v1/ingest/refresh-all", "/api/v1/ingest/status"
         ],
     }
 
@@ -160,3 +163,54 @@ def get_kpis():
         "dead_mileage_saved_km": relocation_plan["total_dead_mileage_saved_km"],
         "fleet_status": relocation_plan["fleet_status"],
     }
+
+
+# --- Ingestion endpoints ---
+from ingestion.ingest_store import IngestStore
+from ingestion import bdms_adapter, tms_adapter, fois_adapter, scada_adapter, crew_adapter, asset_health_adapter
+
+_store = IngestStore()
+
+@app.get("/api/v1/ingest/bdms")
+def get_ingest_bdms():
+    return bdms_adapter.fetch_live()
+
+@app.get("/api/v1/ingest/tms")
+def get_ingest_tms():
+    return tms_adapter.fetch_live()
+
+@app.get("/api/v1/ingest/fois")
+def get_ingest_fois():
+    return fois_adapter.fetch_live()
+
+@app.get("/api/v1/ingest/scada")
+def get_ingest_scada():
+    return scada_adapter.fetch_live()
+
+@app.get("/api/v1/ingest/crew")
+def get_ingest_crew():
+    return crew_adapter.fetch_live()
+
+@app.get("/api/v1/ingest/asset-health")
+def get_ingest_asset_health_adapter():
+    return asset_health_adapter.fetch_live()
+
+@app.post("/api/v1/ingest/refresh-all")
+def post_ingest_refresh_all():
+    _store.refresh_all()
+    # Re-run optimizer with fresh ingested data
+    state = get_session_state()
+    result = optimize_schedule(
+        injected_delays=state["injected_delays"],
+        excluded_corridor_ids=state["excluded_corridor_ids"],
+    )
+    _LAST_SCHEDULE["result"] = result
+    return {
+        "status": "refreshed",
+        "ingestion_status": _store.status(),
+        "schedule": result,
+    }
+
+@app.get("/api/v1/ingest/status")
+def get_ingest_status():
+    return _store.status()

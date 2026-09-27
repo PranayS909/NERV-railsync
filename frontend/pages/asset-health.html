@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>RailSync-AI — Asset Health</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../css/railsync.css">
+</head>
+<body data-role="controller">
+
+<header>
+    <div class="brand">
+        <span class="mark">◆</span>
+        <span class="name">RailSync-AI</span>
+    </div>
+    <nav class="main-nav">
+        <a href="marey.html" class="nav-link">Marey Chart</a>
+        <a href="planning.html" class="nav-link">Block Planning</a>
+        <a href="fleet.html" class="nav-link">Machine Fleet</a>
+        <a href="asset-health.html" class="nav-link active">Asset Health</a>
+        <a href="arbitration.html" class="nav-link">Arbitration Log</a>
+    </nav>
+    <div class="header-controls">
+        <select id="roleToggle" class="role-select">
+            <option value="controller">Section Controller</option>
+            <option value="drm">DRM / Sr.DEN</option>
+        </select>
+        <div class="clock" id="liveClock">00:00:00</div>
+        <div class="status" id="statusIndicator"><span class="dot"></span><span id="statusText">connecting…</span></div>
+    </div>
+</header>
+
+<main>
+    <h2>Track Geometry & Maintenance Heatmap (0 - 150 km)</h2>
+    <div class="heatmap-container" id="heatmapContainer">
+        <div class="heatmap-strip" id="tgiHeatmap">
+            <!-- Segments injected via JS -->
+        </div>
+        <div class="heatmap-axis">
+            <span>0 km (GZB)</span>
+            <span>75 km</span>
+            <span>150 km (ALJN)</span>
+        </div>
+    </div>
+    
+    <div style="display: flex; gap: 20px;">
+        <div style="flex: 2;">
+            <div class="chart-panel">
+                <h2>OMS Vertical Spike Detection</h2>
+                <svg id="omsChart" width="100%" height="200"></svg>
+            </div>
+        </div>
+        <div style="flex: 1;" id="segmentDetails" class="card">
+            <h3>Segment Details</h3>
+            <p style="color: var(--text-dim); font-size: 13px;">Hover over or click a segment on the heatmap to view details.</p>
+        </div>
+    </div>
+
+    <h2>SCADA OHE Telemetry</h2>
+    <div class="table-wrapper">
+        <table id="scadaTable">
+            <thead>
+                <tr>
+                    <th>Equipment ID</th>
+                    <th>Location (km)</th>
+                    <th>Voltage (kV)</th>
+                    <th>Current (A)</th>
+                    <th>Temp (°C)</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Rows injected via JS -->
+            </tbody>
+        </table>
+    </div>
+</main>
+
+<script src="../js/api.js"></script>
+<script>
+async function init() {
+    updateConnectionStatus(true, 'connected');
+    await loadAssetHealth();
+    await loadScada();
+}
+
+async function loadAssetHealth() {
+    try {
+        const data = await api('/api/v1/asset-health');
+        renderHeatmap(data);
+        renderOmsChart(data);
+    } catch(e) {
+        showToast('Failed to load asset health data', 'error');
+    }
+}
+
+function renderHeatmap(data) {
+    const strip = document.getElementById('tgiHeatmap');
+    strip.innerHTML = '';
+    
+    data.sort((a,b) => a.segment_km_start - b.segment_km_start).forEach(seg => {
+        const div = document.createElement('div');
+        div.className = 'heatmap-segment';
+        
+        // Color logic based on TGI
+        let bg = 'var(--red)';
+        if (seg.track_geometry_index >= 85) bg = 'var(--green)';
+        else if (seg.track_geometry_index >= 60) bg = 'var(--amber)';
+        
+        div.style.backgroundColor = bg;
+        div.addEventListener('mouseenter', () => showSegmentDetails(seg));
+        strip.appendChild(div);
+    });
+}
+
+function showSegmentDetails(seg) {
+    const panel = document.getElementById('segmentDetails');
+    panel.innerHTML = `
+        <h3 style="margin: 0 0 10px;">Km ${seg.segment_km_start} - ${seg.segment_km_end}</h3>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 13px;">
+            <div><span style="color:var(--text-dim);">TGI Score:</span> <strong style="color:var(--amber);">${seg.track_geometry_index}</strong></div>
+            <div><span style="color:var(--text-dim);">Overdue:</span> ${seg.overdue_maintenance_days} days</div>
+            <div><span style="color:var(--text-dim);">Vertical g:</span> ${seg.oms_vertical_g}</div>
+            <div><span style="color:var(--text-dim);">Lateral g:</span> ${seg.oms_lateral_g}</div>
+            <div><span style="color:var(--text-dim);">Criticality:</span> ${seg.criticality_score}/100</div>
+            <div><span style="color:var(--text-dim);">Urgent:</span> <span class="badge ${seg.oms_flag_urgent ? 'badge-red' : 'badge-green'}">${seg.oms_flag_urgent ? 'YES' : 'NO'}</span></div>
+        </div>
+    `;
+}
+
+function renderOmsChart(data) {
+    const svg = document.getElementById('omsChart');
+    const width = svg.clientWidth || 800;
+    const height = 200;
+    svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+    
+    const margin = {top: 20, right: 20, bottom: 20, left: 40};
+    const w = width - margin.left - margin.right;
+    const h = height - margin.top - margin.bottom;
+    
+    // Axes lines
+    svg.innerHTML = `
+        <line x1="${margin.left}" y1="${margin.top+h}" x2="${width-margin.right}" y2="${margin.top+h}" stroke="var(--border)" />
+        <line x1="${margin.left}" y1="${margin.top}" x2="${margin.left}" y2="${margin.top+h}" stroke="var(--border)" />
+        <!-- Threshold Line (0.20g) -->
+        <line x1="${margin.left}" y1="${margin.top + h - (0.20 / 0.35)*h}" x2="${width-margin.right}" y2="${margin.top + h - (0.20 / 0.35)*h}" stroke="var(--red)" stroke-dasharray="4,4" />
+        <text x="${width-margin.right}" y="${margin.top + h - (0.20 / 0.35)*h - 5}" fill="var(--red)" font-size="10" text-anchor="end" font-family="var(--font-mono)">0.20g Threshold</text>
+    `;
+    
+    let pts = '';
+    data.sort((a,b) => a.segment_km_start - b.segment_km_start).forEach(seg => {
+        const kmCenter = (seg.segment_km_start + seg.segment_km_end) / 2;
+        const x = margin.left + (kmCenter / 150) * w;
+        // Max g is ~0.35
+        const y = margin.top + h - (Math.min(seg.oms_vertical_g, 0.35) / 0.35) * h;
+        pts += `${x},${y} `;
+    });
+    
+    const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+    poly.setAttribute('points', pts.trim());
+    poly.setAttribute('fill', 'none');
+    poly.setAttribute('stroke', 'var(--blue)');
+    poly.setAttribute('stroke-width', '2');
+    svg.appendChild(poly);
+}
+
+async function loadScada() {
+    try {
+        const data = await api('/api/v1/ingest/scada');
+        const tbody = document.querySelector('#scadaTable tbody');
+        tbody.innerHTML = '';
+        
+        data.forEach(eq => {
+            const tr = document.createElement('tr');
+            const faultBadge = eq.fault_flag ? '<span class="badge badge-red">FAULT</span>' : '<span class="badge badge-green">OK</span>';
+            
+            tr.innerHTML = `
+                <td><div style="font-family:var(--font-mono);">${eq.equipment_id}</div></td>
+                <td>${eq.km}</td>
+                <td>${eq.voltage_kv}</td>
+                <td>${eq.current_a}</td>
+                <td>${eq.temperature_c}</td>
+                <td>${faultBadge}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+    } catch(e) {}
+}
+
+init();
+</script>
+</body>
+</html>
