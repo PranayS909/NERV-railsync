@@ -102,12 +102,14 @@ async function loadFleet() {
                     </div>
                     <span class="badge ${statusBadge}">${m.status}</span>
                 </div>
-                <div style="font-size: 13px; color: var(--text-dim); margin-top: 10px;">
+                <div style="font-size: 12px; color: var(--text-dim); margin-top: 10px; display: flex; flex-direction: column; gap: 4px;">
                     <div><strong>Current Location:</strong> km ${m.current_km}</div>
                     <div><strong>Base Siding:</strong> ${m.base_siding || 'N/A'}</div>
+                    <div><strong>Assigned Crew:</strong> ${m.operator || 'Departmental Team'}</div>
+                    <div><strong>Next Maintenance:</strong> ${m.next_maintenance_due || 'Scheduled'}</div>
                 </div>
                 <div style="margin-top: 15px;">
-                    <div style="font-size: 11px; margin-bottom: 4px; color: var(--text-dim);">Daily Schedule</div>
+                    <div style="font-size: 11px; margin-bottom: 4px; color: var(--text-dim);">Daily Schedule Allocation</div>
                     <div style="display: flex; height: 12px; background: var(--panel-2); border-radius: 6px; overflow: hidden;">
                         <div style="flex: 2; background: var(--blue);" title="Transit"></div>
                         <div style="flex: 5; background: var(--amber);" title="Working"></div>
@@ -137,20 +139,24 @@ async function loadCrew() {
         
         data.forEach(c => {
             const tr = document.createElement('tr');
-            const hoursLeft = c.duty_hours_remaining;
+            const hoursLeft = c.duty_hours_remaining ?? 0;
             const hoursClass = hoursLeft < 2 ? 'color: var(--red); font-weight: bold;' : '';
-            
+            const crewId = c.driver_id || c.crew_id || 'DRV-GZB';
+            const crewName = c.driver_name || c.name || 'Loco Pilot';
+            const asset = c.linked_train_no || c.linked_asset || 'UNASSIGNED';
+            const depot = c.home_depot || c.depot || 'GZB';
+
             tr.innerHTML = `
-                <td><div style="font-weight: 500;">${c.crew_id}</div><div style="font-size: 11px; color: var(--text-dim);">${c.name || ''}</div></td>
-                <td><span class="badge badge-grey">${c.linked_asset || 'UNASSIGNED'}</span></td>
-                <td>${c.depot}</td>
+                <td><div style="font-weight: 600; font-family: var(--font-mono); color: var(--amber);">${crewId}</div><div style="font-size: 12px; color: var(--text);">${crewName}</div></td>
+                <td><span class="badge badge-grey">${asset}</span></td>
+                <td>${depot}</td>
                 <td style="${hoursClass}">${hoursLeft.toFixed(1)} hrs</td>
                 <td><span class="badge ${c.status === 'ON_DUTY' ? 'badge-green' : 'badge-grey'}">${c.status}</span></td>
             `;
             tbody.appendChild(tr);
         });
     } catch(e) {
-        // Silently fail if endpoint not fully ready
+        console.error(e);
     }
 }
 
