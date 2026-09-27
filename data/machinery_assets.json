@@ -2,33 +2,61 @@
   {
     "asset_id": "CSM-1",
     "type": "Plasser Continuous Tamping Machine",
-    "base_siding": "KRJ",
+    "base_siding": "KRJ (km 83.1)",
     "status": "IDLE",
     "max_transit_speed_kmh": 40,
-    "current_km": 83.1
+    "current_km": 32.0,
+    "operator": "Civil Engg Team A (DEM-CIV-01)",
+    "next_maintenance_due": "2026-10-15"
   },
   {
     "asset_id": "BCM-2",
     "type": "Ballast Cleaning Machine",
-    "base_siding": "GZB",
-    "status": "IDLE",
+    "base_siding": "GZB (km 0.0)",
+    "status": "WORKING",
     "max_transit_speed_kmh": 35,
-    "current_km": 0.0
+    "current_km": 85.0,
+    "operator": "Civil Engg Team B (DEM-CIV-02)",
+    "next_maintenance_due": "2026-10-02"
   },
   {
     "asset_id": "TOWER-WAGON-1",
     "type": "8-Wheeler TRD Inspection Car",
-    "base_siding": "DER",
+    "base_siding": "DER (km 26.2)",
     "status": "IDLE",
     "max_transit_speed_kmh": 45,
-    "current_km": 26.2
+    "current_km": 33.0,
+    "operator": "TRD OHE Team 1 (DEM-TRD-01)",
+    "next_maintenance_due": "2026-11-01"
   },
   {
     "asset_id": "UNIMAT-3",
     "type": "Turnout Tamping Machine",
-    "base_siding": "ALJN",
+    "base_siding": "ALJN (km 150.0)",
     "status": "IDLE",
     "max_transit_speed_kmh": 40,
-    "current_km": 150.0
+    "current_km": 120.0,
+    "operator": "Civil Engg Team C (DEM-CIV-04)",
+    "next_maintenance_due": "2026-10-20"
+  },
+  {
+    "asset_id": "DGS-4",
+    "type": "Dynamic Track Stabilizer",
+    "base_siding": "DKDE (km 43.5)",
+    "status": "TRANSIT",
+    "max_transit_speed_kmh": 50,
+    "current_km": 43.5,
+    "operator": "Civil Track Support Team",
+    "next_maintenance_due": "2026-10-18"
+  },
+  {
+    "asset_id": "TOWER-WAGON-2",
+    "type": "4-Wheeler TRD Emergency Car",
+    "base_siding": "CHL (km 58.2)",
+    "status": "IDLE",
+    "max_transit_speed_kmh": 40,
+    "current_km": 58.2,
+    "operator": "TRD Emergency Team 2",
+    "next_maintenance_due": "2026-10-25"
   }
 ]

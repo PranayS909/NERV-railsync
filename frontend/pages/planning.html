@@ -59,7 +59,11 @@
 
     <div class="chart-panel">
         <h2>Clustered Machine Corridors (Timeline)</h2>
-        <div id="ganttWrap" style="overflow-x: auto;">
+        <div id="ganttWrap" style="overflow-x: auto; position: relative;">
+            <div id="idleGanttOverlay" style="display:none; padding: 24px; text-align: center; background: #f8fafc; border: 1px dashed var(--border); border-radius: 6px; margin: 12px 0;">
+                <div style="font-weight: 700; color: var(--amber); font-size: 13px;">◆ Machine allocation pending</div>
+                <div style="font-size: 12px; color: var(--text-dim); margin-top: 4px;">Run &ldquo;AI Corridor Optimization&rdquo; on Marey Chart first, then click &ldquo;Cluster &amp; Optimize&rdquo;</div>
+            </div>
             <svg id="ganttChart" width="1180" height="300"></svg>
         </div>
     </div>
@@ -67,11 +71,29 @@
 
 <script src="../js/api.js"></script>
 <script>
+function isPageReload() {
+    try {
+        const navEntries = performance.getEntriesByType ? performance.getEntriesByType('navigation') : [];
+        if (navEntries.length > 0 && navEntries[0].type === 'reload') {
+            return true;
+        }
+        if (window.performance && window.performance.navigation && window.performance.navigation.type === 1) {
+            return true;
+        }
+    } catch(e) {}
+    return false;
+}
+
 let demands = [];
 let corridors = [];
 
 async function init() {
     updateConnectionStatus(true, 'connected');
+    
+    if (isPageReload()) {
+        try { sessionStorage.removeItem('railsync_planning_optimized'); } catch(e) {}
+    }
+
     await loadDemands();
 }
 
@@ -79,12 +101,36 @@ async function loadDemands() {
     try {
         const data = await api('/api/v1/demands').catch(() => api('/api/v1/ingest/bdms'));
         demands = data.raw_demands || [];
-        corridors = data.clustered_corridors || [];
         renderTable();
-        renderGantt();
+
+        const rawPlanning = sessionStorage.getItem('railsync_planning_optimized');
+        if (rawPlanning) {
+            try {
+                corridors = JSON.parse(rawPlanning);
+                hideIdlePlanning();
+                renderGantt();
+            } catch(e) {
+                showIdlePlanning();
+            }
+        } else {
+            corridors = [];
+            showIdlePlanning();
+        }
     } catch(e) {
         showToast('Failed to load demands', 'error');
     }
+}
+
+function showIdlePlanning() {
+    const svg = document.getElementById('ganttChart');
+    if (svg) svg.innerHTML = '';
+    const ov = document.getElementById('idleGanttOverlay');
+    if (ov) ov.style.display = 'block';
+}
+
+function hideIdlePlanning() {
+    const ov = document.getElementById('idleGanttOverlay');
+    if (ov) ov.style.display = 'none';
 }
 
 function renderTable() {
@@ -99,13 +145,18 @@ function renderTable() {
         else if (d.status === 'DEFERRED') statusBadge = 'badge-red';
         else statusBadge = 'badge-grey';
 
+        const durVal = d.duration_min ?? d.duration_minutes ?? d.duration;
+        const durationDisplay = (durVal !== null && durVal !== undefined && durVal > 0)
+            ? `<span style="font-family:var(--font-mono);font-weight:600;">${durVal} min</span>`
+            : `<span class="badge badge-grey" style="font-size:11px;letter-spacing:0.02em;text-transform:none;font-weight:500;">Not yet defined</span>`;
+
         tr.innerHTML = `
             <td><div style="font-family:var(--font-mono);color:var(--amber)">${d.demand_id || d.id}</div></td>
             <td><span class="badge ${d.department === 'CIVIL' ? 'badge-grey' : (d.department === 'TRD' ? 'badge-amber' : 'badge-blue')}">${d.department}</span></td>
             <td>${d.km_start} - ${d.km_end}</td>
             <td>${d.work_nature || 'Maintenance'}</td>
-            <td>${d.duration_minutes || d.duration} min</td>
-            <td>${(d.machines_required||[]).join(', ') || 'N/A'}</td>
+            <td>${durationDisplay}</td>
+            <td>${(d.machines_required||[]).join(', ') || d.machine || 'N/A'}</td>
             <td><span class="badge ${statusBadge}">${d.status || 'PENDING'}</span></td>
             <td class="drm-only">
                 <button class="btn-small btn-action-green" onclick="handleDrmAction('${d.demand_id}', 'approve')">Approve</button>
@@ -173,30 +224,39 @@ function renderGantt() {
     });
     
     // Draw corridors
-    corridors.forEach(c => {
+    corridors.forEach((c, idx) => {
         const mList = (c.machines_required && c.machines_required.length) ? c.machines_required : ['Manual'];
+        const startMin = c.sanctioned_start ? hhmmToMin(c.sanctioned_start) : (SIM_START + 30 + (idx % 7) * 90);
+        const dur = (c.duration_min && c.duration_min > 0) ? c.duration_min : 90;
+        const endMin = c.sanctioned_end ? hhmmToMin(c.sanctioned_end) : (startMin + dur);
+
+        const startX = timeToX(startMin);
+        const endX = timeToX(endMin);
+
         mList.forEach(mac => {
-            const mIdx = machines.indexOf(mac);
+            let mIdx = machines.indexOf(mac);
+            if (mIdx < 0) mIdx = machines.indexOf('Manual');
             if (mIdx < 0) return;
             
-            const startX = timeToX(hhmmToMin(c.sanctioned_start));
-            const endX = timeToX(hhmmToMin(c.sanctioned_end));
             const y = MARGIN_T + mIdx * ROW_H + 8;
             
             const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
             rect.setAttribute('x', startX);
             rect.setAttribute('y', y);
-            rect.setAttribute('width', Math.max(endX - startX, 4));
+            rect.setAttribute('width', Math.max(endX - startX, 24));
             rect.setAttribute('height', ROW_H - 16);
+            rect.setAttribute('rx', 4);
             rect.setAttribute('fill', 'var(--blue)');
-            rect.setAttribute('opacity', '0.7');
+            rect.setAttribute('opacity', '0.85');
             svg.appendChild(rect);
             
             const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-            text.setAttribute('x', startX + 4);
-            text.setAttribute('y', y + 15);
-            text.setAttribute('class', 'axis-label');
-            text.setAttribute('fill', 'var(--bg)');
+            text.setAttribute('x', startX + 6);
+            text.setAttribute('y', y + 16);
+            text.setAttribute('font-family', 'var(--font-mono)');
+            text.setAttribute('font-size', '11px');
+            text.setAttribute('font-weight', '600');
+            text.setAttribute('fill', '#ffffff');
             text.textContent = c.corridor_id;
             svg.appendChild(text);
         });
@@ -217,11 +277,26 @@ document.getElementById('btnRefreshBDMS').addEventListener('click', async (e) =>
 });
 
 document.getElementById('btnOptimizeDemands').addEventListener('click', async (e) => {
+    // Edge case check: Marey Chart optimization must be completed first
+    const isMareyOptimized = sessionStorage.getItem('railsync_marey_optimized_flag') === 'true' ||
+                             !!sessionStorage.getItem('railsync_marey_optimized');
+
+    if (!isMareyOptimized) {
+        showToast("Please run 'AI Corridor Optimization' on Marey Chart tab first!", "error");
+        return;
+    }
+
     e.target.disabled = true; e.target.textContent = 'Optimizing...';
     try {
-        await apiPost('/api/v1/optimize', {});
+        const result = await apiPost('/api/v1/optimize', {});
+        if (result && result.corridors) {
+            corridors = result.corridors;
+            sessionStorage.setItem('railsync_planning_optimized', JSON.stringify(corridors));
+            hideIdlePlanning();
+            renderGantt();
+        }
         await loadDemands();
-        showToast('Optimization complete', 'success');
+        showToast('Block planning & machine allocation complete', 'success');
     } catch(err) {
         showToast('Optimization failed', 'error');
     } finally {

@@ -3,17 +3,89 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>RailSync-AI — Marey Chart</title>
+    <title>RailSync-AI - Marey Chart</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="../css/railsync.css">
+    <style>
+        /* Optimization summary bar */
+        #summaryOverlay { display:none; margin-bottom:12px; transition:opacity 0.6s ease; }
+        .opt-summary-bar {
+            display:flex; flex-wrap:wrap; gap:8px; align-items:center;
+            background:linear-gradient(90deg,#f0fdf4,#f0f9ff);
+            border:1px solid #bbf7d0; border-left:3px solid var(--teal);
+            padding:10px 14px; border-radius:4px; animation:fadeSlideDown 0.4s ease-out;
+        }
+        @keyframes fadeSlideDown { from{opacity:0;transform:translateY(-8px)} to{opacity:1;transform:translateY(0)} }
+        .opt-summary-chip {
+            font-family:var(--font-mono); font-size:12px; padding:4px 10px;
+            border-radius:20px; background:#ffffff;
+            border:1px solid var(--border); color:var(--text-dim); white-space:nowrap;
+        }
+        .opt-summary-chip.ok   { background:#ccfbf1; border-color:var(--teal); color:var(--teal); }
+        .opt-summary-chip.club { background:#dbeafe; border-color:var(--blue); color:var(--blue); }
+        .opt-summary-chip.warn { background:#fee2e2; border-color:var(--red); color:var(--red); }
+        .opt-summary-chip.eff  { background:#fef3c7; border-color:var(--amber); color:var(--amber); }
+        /* Chart shimmer during solve */
+        .chart-loading { position:relative; pointer-events:none; }
+        .chart-loading::after {
+            content:''; position:absolute; inset:0;
+            background:linear-gradient(90deg,transparent,rgba(13,148,136,0.1),transparent);
+            background-size:200% 100%; animation:shimmer 1.2s linear infinite; z-index:10;
+        }
+        @keyframes shimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
+        /* Button pulse during solve */
+        #btnOptimize.solving {
+            background:linear-gradient(90deg,#dcfce7,#dbeafe,#dcfce7);
+            background-size:200% 100%; animation:btnPulse 1.4s ease-in-out infinite;
+            border-color:var(--teal); color:var(--teal);
+        }
+        @keyframes btnPulse { 0%,100%{background-position:0% 50%} 50%{background-position:100% 50%} }
+        .dept-swatch { display:inline-block; width:16px; height:10px; border-radius:2px; vertical-align:middle; margin-right:4px; }
+        /* Ghost (before state) corridors - clearly visible pulsing amber outline */
+        .corridor-ghost {
+            pointer-events:none;
+            animation:ghostPulse 0.9s ease-in-out infinite alternate;
+        }
+        @keyframes ghostPulse {
+            from { opacity:0.45; }
+            to   { opacity:0.85; }
+        }
+        /* Before/after label banner */
+        .ghost-label {
+            pointer-events:none;
+            font-family:monospace; font-size:10px; fill:#d97706; font-weight:700;
+        }
+        .corridor-group { will-change:opacity,transform; }
+        /* Idle CTA - small corner badge, no dim, non-blocking */
+        #idleCtaOverlay {
+            display:none;
+            position:absolute;
+            bottom:52px; right:12px;
+            z-index:5; pointer-events:none;
+        }
+        #idleCtaOverlay.show { display:block; }
+        .idle-cta-box {
+            background:rgba(255,255,255,0.95);
+            border:1px solid var(--border); border-left:3px solid var(--amber);
+            box-shadow:0 4px 12px rgba(0,0,0,0.08);
+            padding:10px 14px; border-radius:4px;
+            animation:fadeSlideDown 0.4s ease-out;
+            max-width:300px;
+        }
+        .idle-cta-box .idle-title {
+            font-size:12px; font-weight:700; color:var(--amber); margin-bottom:4px;
+        }
+        .idle-cta-box .idle-sub {
+            font-size:11px; color:var(--text-dim); font-family:var(--font-mono); line-height:1.5;
+        }
+    </style>
 </head>
 <body data-role="controller">
-
 <header>
     <div class="brand">
-        <span class="mark">◆</span>
+        <span class="mark">&#9670;</span>
         <span class="name">RailSync-AI</span>
-        <span class="route">GZB → ALJN · 150km double-electrified BG trunk</span>
+        <span class="route">GZB &rarr; ALJN &middot; 150km double-electrified BG trunk</span>
     </div>
     <nav class="main-nav">
         <a href="marey.html" class="nav-link active">Marey Chart</a>
@@ -28,29 +100,19 @@
             <option value="drm">DRM / Sr.DEN</option>
         </select>
         <div class="clock" id="liveClock">00:00:00</div>
-        <div class="status" id="statusIndicator"><span class="dot"></span><span id="statusText">connecting…</span></div>
+        <div class="status" id="statusIndicator"><span class="dot"></span><span id="statusText">connecting&hellip;</span></div>
     </div>
 </header>
-
 <main>
     <div class="kpi-row">
-        <div class="kpi">
-            <div class="label">Secondary delay prevented</div>
-            <div class="value" id="kpiDelayPrevented">—<span class="unit">min</span></div>
-        </div>
-        <div class="kpi">
-            <div class="label">Corridor utilization rate</div>
-            <div class="value" id="kpiUtilization">—<span class="unit">%</span></div>
-        </div>
-        <div class="kpi">
-            <div class="label">Dead-mileage saved</div>
-            <div class="value" id="kpiDeadMileage">—<span class="unit">km</span></div>
-        </div>
-        <div class="kpi">
-            <div class="label">Live fleet status</div>
-            <div class="fleet-list" id="fleetList">—</div>
-        </div>
+        <div class="kpi"><div class="label">Secondary delay prevented</div><div class="value" id="kpiDelayPrevented">&mdash;<span class="unit">min</span></div></div>
+        <div class="kpi"><div class="label">Corridor utilization rate</div><div class="value" id="kpiUtilization">&mdash;<span class="unit">%</span></div></div>
+        <div class="kpi"><div class="label">Dead-mileage saved</div><div class="value" id="kpiDeadMileage">&mdash;<span class="unit">km</span></div></div>
+        <div class="kpi"><div class="label">Live fleet status</div><div class="fleet-list" id="fleetList">&mdash;</div></div>
     </div>
+
+    <!-- AI optimisation result summary bar -->
+    <div id="summaryOverlay"></div>
 
     <div class="conflict-banner" id="conflictBanner">
         <span id="conflictBannerText"></span>
@@ -62,32 +124,38 @@
         <div class="delay-widget">
             <label for="trainSelect">Inject live delay</label>
             <select id="trainSelect"></select>
-            <input type="range" id="delaySlider" min="0" max="90" step="5" value="30">
-            <span class="delay-value" id="delayValue">30 min</span>
+            <input type="range" id="delaySlider" min="0" max="90" step="5" value="60">
+            <span class="delay-value" id="delayValue">60 min</span>
             <button id="btnSimulate">Simulate Incident</button>
         </div>
         <button id="btnReset" title="Clear injected delays and arbitration log">Reset Session</button>
-        
-        <label class="drm-only" style="margin-left: auto; display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-dim); cursor: pointer;">
+        <label class="drm-only" style="margin-left:auto;display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-dim);cursor:pointer;">
             <input type="checkbox" id="drmOverlayToggle"> Show Plan vs Actual Overlay
         </label>
     </div>
 
-    <div class="chart-panel" id="chartContainer">
-        <h2>Dynamic Marey chart — time / distance</h2>
+    <div class="chart-panel" id="chartContainer" style="position:relative;">
+        <h2>Dynamic Marey chart &mdash; time / distance
+            <span id="optimizeStatus" style="font-size:11px;font-family:var(--font-mono);color:var(--text-faint);font-weight:400"></span>
+        </h2>
+        <!-- Idle overlay: shown before first optimization, hidden on button click -->
+        <div id="idleCtaOverlay">
+            <div class="idle-cta-box">
+                <div class="idle-title">&#9670; Train schedule loaded &mdash; no corridors assigned yet</div>
+                <div class="idle-sub">Click &ldquo;Run AI Corridor Optimization&rdquo; to allocate<br>maintenance blocks in collision-free windows</div>
+            </div>
+        </div>
         <div id="mareyWrap"><svg id="marey"></svg></div>
         <div class="legend">
             <div class="legend-item"><div class="legend-swatch" style="background:var(--blue)"></div>Premier</div>
             <div class="legend-item"><div class="legend-swatch" style="background:var(--green)"></div>Express / MEMU</div>
             <div class="legend-item"><div class="legend-swatch dashed"></div>Forecasted freight</div>
-            <div class="legend-item"><div class="legend-swatch" style="background:var(--red)"></div>Delayed</div>
-            <div class="legend-item"><div class="legend-badge" style="background:var(--slate)"></div>Civil block</div>
-            <div class="legend-item"><div class="legend-badge" style="background:var(--amber)"></div>TRD block</div>
-            <div class="legend-item"><div class="legend-badge" style="background:var(--teal)"></div>S&amp;T block</div>
-            <div class="legend-item"><div style="width:8px;height:8px;border-radius:50%;background:white"></div>TMS Live Train</div>
-            <div class="legend-item">
-                <svg width="12" height="12"><polygon points="6,0 12,12 0,12" fill="var(--red)"/></svg> SCADA Fault
-            </div>
+            <div class="legend-item"><div class="legend-swatch" style="background:var(--red)"></div>Delayed / Conflict</div>
+            <div class="legend-item"><span class="dept-swatch" style="background:#64748b"></span>Civil block</div>
+            <div class="legend-item"><span class="dept-swatch" style="background:#d97706"></span>TRD/OHE block</div>
+            <div class="legend-item"><span class="dept-swatch" style="background:#0d9488"></span>S&amp;T block</div>
+            <div class="legend-item"><div style="width:8px;height:8px;border-radius:50%;background:var(--text)"></div>TMS Live Train</div>
+            <div class="legend-item"><svg width="12" height="12"><polygon points="6,0 12,12 0,12" fill="var(--red)"/></svg> SCADA Fault</div>
         </div>
     </div>
 </main>
@@ -97,10 +165,7 @@
 <div class="modal-overlay" id="modalOverlay">
     <div class="modal">
         <div class="modal-head">
-            <div>
-                <h3>Trade-off arbitration</h3>
-                <p id="modalSubtitle">—</p>
-            </div>
+            <div><h3>Trade-off arbitration</h3><p id="modalSubtitle">&mdash;</p></div>
             <button class="modal-close" id="modalClose">&times;</button>
         </div>
         <div class="modal-body" id="modalBody"></div>
@@ -110,391 +175,663 @@
 <script src="../js/api.js"></script>
 <script src="../js/realtime.js"></script>
 <script>
-const STATION_KMS = {GZB:0.0,MIU:19.5,DER:26.2,BRKY:30.8,AJR:35.4,DKDE:43.5,WAIR:52.8,CHL:58.2,KRJ:83.1,DAR:94.6,SOM:110.2,KLA:125.8,ALJN:150.0};
+// =============================================================================
+//  RailSync-AI  Marey Chart  optimisation-aware rendering
+// =============================================================================
+
+const STATION_KMS = {
+    GZB:0.0,MIU:19.5,DER:26.2,BRKY:30.8,AJR:35.4,DKDE:43.5,
+    WAIR:52.8,CHL:58.2,KRJ:83.1,DAR:94.6,SOM:110.2,KLA:125.8,ALJN:150.0
+};
 const SIM_START = 6*60, SIM_END = 18*60;
-const CHART_W = 1180, CHART_H = 640, MARGIN = {top:14,right:24,bottom:34,left:64};
-const PLOT_W = CHART_W - MARGIN.left - MARGIN.right;
-const PLOT_H = CHART_H - MARGIN.top - MARGIN.bottom;
+const CHART_W = 1180, CHART_H = 640;
+const MARGIN  = {top:14, right:24, bottom:34, left:64};
+const PLOT_W  = CHART_W - MARGIN.left - MARGIN.right;
+const PLOT_H  = CHART_H - MARGIN.top  - MARGIN.bottom;
 
-const DEPT_COLOR = {CIVIL:'var(--slate)', TRD:'var(--amber)', SNT:'var(--teal)'};
-const TRAIN_COLOR = {PREMIER:'var(--blue)', EXPRESS:'var(--green)', MEMU:'var(--green)', FREIGHT:'var(--amber)'};
+// Dept colours  css-var (for SVG stroke)  /  hex (for SVG fill)
+const DEPT_CSS = {CIVIL:'var(--slate)', TRD:'var(--amber)', SNT:'var(--teal)'};
+const DEPT_HEX = {CIVIL:'#64748b',      TRD:'#d97706',      SNT:'#0d9488'};
+const TRAIN_COLOR = {
+    PREMIER:'var(--blue)', EXPRESS:'var(--green)',
+    MEMU:'var(--green)',   FREIGHT:'var(--amber)'
+};
 
-let state = { trains:[], network:null, lastSchedule:null, injectedDelays:{}, currentMatrices:[], tmsData:[], scadaFaults:[] };
+let state = {
+    trains:[], network:null, lastSchedule:null,
+    injectedDelays:{}, currentMatrices:[]
+};
 
-function timeToX(min){ return MARGIN.left + ((min-SIM_START)/(SIM_END-SIM_START))*PLOT_W; }
-function kmToY(km){ return MARGIN.top + (km/150.0)*PLOT_H; }
-function hhmmToMin(t){ const [h,m]=t.split(':').map(Number); return h*60+m; }
+// helpers
+function timeToX(min) { return MARGIN.left + ((min-SIM_START)/(SIM_END-SIM_START))*PLOT_W; }
+function kmToY(km)    { return MARGIN.top  + (km/150.0)*PLOT_H; }
+function hhmmToMin(t) { const [h,m]=t.split(':').map(Number); return h*60+m; }
+function svgEl(tag, attrs) {
+    const el=document.createElementNS('http://www.w3.org/2000/svg',tag);
+    for(const k in attrs) el.setAttribute(k,attrs[k]); return el;
+}
 
-async function init(){
-    try{
-        const [network, trains] = await Promise.all([api('/api/v1/network'), api('/api/v1/trains')]);
-        state.network = network; state.trains = trains;
-        updateConnectionStatus(true, `live · ${network.stations.length} stations`);
-        populateTrainSelect();
-        drawAxes();
-        drawTrains();
-        await runOptimize();
-        await loadKpis();
+function isPageReload() {
+    try {
+        const navEntries = performance.getEntriesByType ? performance.getEntriesByType('navigation') : [];
+        if (navEntries.length > 0 && navEntries[0].type === 'reload') {
+            return true;
+        }
+        if (window.performance && window.performance.navigation && window.performance.navigation.type === 1) {
+            return true;
+        }
+    } catch(e) {}
+    return false;
+}
+
+// Save / restore state in sessionStorage so tab navigation retains active optimization
+function saveMareyState() {
+    if(!state.lastSchedule) return;
+    const data = {
+        lastSchedule: state.lastSchedule,
+        injectedDelays: state.injectedDelays,
+        currentMatrices: state.currentMatrices
+    };
+    try {
+        sessionStorage.setItem('railsync_marey_optimized', JSON.stringify(data));
+        sessionStorage.setItem('railsync_marey_optimized_flag', 'true');
+    } catch(e) {
+        console.error('Failed to save state', e);
+    }
+}
+
+function restoreMareyState() {
+    try {
+        const raw = sessionStorage.getItem('railsync_marey_optimized');
+        if(!raw) return false;
+        const data = JSON.parse(raw);
+        if(!data || !data.lastSchedule || !data.lastSchedule.corridors) return false;
+
+        state.lastSchedule = data.lastSchedule;
+        state.injectedDelays = data.injectedDelays || {};
+        state.currentMatrices = data.currentMatrices || [];
+
+        drawTrains(state.injectedDelays);
+        clearIdleCta();
+        drawCorridors(state.lastSchedule.corridors, false);
+        highlightConflictTrains(state.lastSchedule.corridors);
+
+        const kpis = state.lastSchedule.kpis || {};
+        document.getElementById('kpiDelayPrevented').innerHTML =
+            (kpis.total_secondary_delay_prevented_min ?? 0) + '<span class="unit">min</span>';
+        document.getElementById('kpiUtilization').innerHTML =
+            (kpis.corridor_utilization_rate_pct ?? 0) + '<span class="unit">%</span>';
+
+        if(state.currentMatrices && state.currentMatrices.length) {
+            const banner = document.getElementById('conflictBanner');
+            document.getElementById('conflictBannerText').textContent =
+                'Active conflicts detected. Review options to arbitrate.';
+            banner.classList.add('show');
+        }
+
+        return true;
+    } catch(e) {
+        console.error('Failed to restore state', e);
+        return false;
+    }
+}
+
+// init — loads network + trains, draws the Marey chart. Restores active optimization if present in session, else shows idle CTA.
+async function init() {
+    try {
+        // Clear any stale localStorage items
+        try { localStorage.removeItem('railsync_marey_optimized'); } catch(e) {}
+
+        // If the user reloaded/refreshed the browser page (F5), clear session storage so it starts fresh
+        if (isPageReload()) {
+            try {
+                sessionStorage.removeItem('railsync_marey_optimized');
+                sessionStorage.removeItem('railsync_marey_optimized_flag');
+                sessionStorage.removeItem('railsync_planning_optimized');
+            } catch(e) {}
+        }
+
+        const [network,trains] = await Promise.all([api('/api/v1/network'), api('/api/v1/trains')]);
+        state.network=network; state.trains=trains;
+        updateConnectionStatus(true, 'live \u00b7 '+network.stations.length+' stations');
+        populateTrainSelect(); drawAxes(); drawTrains();
         
-        // Polling for TMS and SCADA
+        const restored = restoreMareyState();
+        if(!restored) {
+            showIdleCta();
+        }
+        await loadKpis();
+
+        // Start live overlays (TMS dots + SCADA faults) without optimising
         startRealtimePoll(fetchRealtimeData, 30000);
         fetchScadaData();
-    }catch(e){
-        updateConnectionStatus(false, 'backend unreachable');
-        console.error(e);
+    } catch(e) {
+        updateConnectionStatus(false,'backend unreachable'); console.error(e);
     }
 }
 
-function populateTrainSelect(){
-    const sel = document.getElementById('trainSelect');
-    sel.innerHTML = '';
+function populateTrainSelect() {
+    const sel=document.getElementById('trainSelect'); sel.innerHTML='';
     state.trains.forEach(t=>{
-        const opt = document.createElement('option');
-        opt.value = t.train_no;
-        opt.textContent = `${t.train_no} · ${t.name}`;
-        sel.appendChild(opt);
+        const o=document.createElement('option');
+        o.value=t.train_no; o.textContent=t.train_no+' \u00b7 '+t.name;
+        sel.appendChild(o);
     });
 }
 
-function svgEl(tag, attrs){
-    const el = document.createElementNS('http://www.w3.org/2000/svg', tag);
-    for(const k in attrs) el.setAttribute(k, attrs[k]);
-    return el;
-}
-
-function drawAxes(){
-    const svg = document.getElementById('marey');
-    svg.setAttribute('viewBox', `0 0 ${CHART_W} ${CHART_H}`);
-    svg.setAttribute('width', CHART_W);
-    svg.setAttribute('height', CHART_H);
-    svg.innerHTML = '';
-
-    // vertical time grid (30 min ticks)
-    for(let m=SIM_START; m<=SIM_END; m+=30){
-        const x = timeToX(m);
-        svg.appendChild(svgEl('line', {x1:x,y1:MARGIN.top,x2:x,y2:MARGIN.top+PLOT_H, class:'grid-line'}));
-        const label = svgEl('text', {x:x, y:CHART_H-14, class:'axis-label', 'text-anchor':'middle'});
-        label.textContent = `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;
-        svg.appendChild(label);
+// Build SVG scaffold with named layers
+function drawAxes() {
+    const svg=document.getElementById('marey');
+    svg.setAttribute('viewBox','0 0 '+CHART_W+' '+CHART_H);
+    svg.setAttribute('width',CHART_W); svg.setAttribute('height',CHART_H);
+    svg.innerHTML='';
+    // time grid
+    for(let m=SIM_START;m<=SIM_END;m+=30) {
+        const x=timeToX(m);
+        svg.appendChild(svgEl('line',{x1:x,y1:MARGIN.top,x2:x,y2:MARGIN.top+PLOT_H,class:'grid-line'}));
+        const lbl=svgEl('text',{x:x,y:CHART_H-14,class:'axis-label','text-anchor':'middle'});
+        lbl.textContent=String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0');
+        svg.appendChild(lbl);
     }
-
-    // horizontal station lines
+    // station lines
     state.network.stations.forEach(st=>{
-        const y = kmToY(st.km);
-        svg.appendChild(svgEl('line', {x1:MARGIN.left,y1:y,x2:MARGIN.left+PLOT_W,y2:y, class:'station-line'}));
-        const label = svgEl('text', {x:MARGIN.left-8, y:y+3, class:'station-label', 'text-anchor':'end'});
-        label.textContent = `${st.code}`;
-        svg.appendChild(label);
+        const y=kmToY(st.km);
+        svg.appendChild(svgEl('line',{x1:MARGIN.left,y1:y,x2:MARGIN.left+PLOT_W,y2:y,class:'station-line'}));
+        const lbl=svgEl('text',{x:MARGIN.left-8,y:y+3,class:'station-label','text-anchor':'end'});
+        lbl.textContent=st.code; svg.appendChild(lbl);
     });
-
-    svg.appendChild(svgEl('g', {id:'trainLayer'}));
-    svg.appendChild(svgEl('g', {id:'corridorLayer'}));
-    svg.appendChild(svgEl('g', {id:'tmsLayer'}));
-    svg.appendChild(svgEl('g', {id:'scadaLayer'}));
+    // layer stack (back to front):
+    //   trainLayer  - train polylines (base)
+    //   ghostLayer  - naive/before state corridors (ABOVE trains so they're visible)
+    //   corridorLayer - AI-optimised blocks
+    //   tmsLayer / scadaLayer - live overlays
+    ['trainLayer','ghostLayer','corridorLayer','tmsLayer','scadaLayer'].forEach(id=>{
+        svg.appendChild(svgEl('g',{id}));
+    });
 }
 
-function drawTrains(delayOverrides){
-    delayOverrides = delayOverrides || {};
-    const layer = document.getElementById('trainLayer');
-    layer.innerHTML = '';
+// Train polylines
+function drawTrains(delayOverrides) {
+    delayOverrides=delayOverrides||{};
+    const layer=document.getElementById('trainLayer'); layer.innerHTML='';
     state.trains.forEach(t=>{
-        const delay = delayOverrides[t.train_no] || 0;
-        const pts = t.schedule.map(p=>{
-            const arrMin = hhmmToMin(p.arr) + delay;
-            return `${timeToX(arrMin)},${kmToY(p.km)}`;
+        const delay=delayOverrides[t.train_no]||0;
+        const pts=t.schedule.map(p=>{
+            return timeToX(hhmmToMin(p.arr)+delay)+','+kmToY(p.km);
         }).join(' ');
-        const isDelayed = delay > 0;
-        const color = isDelayed ? 'var(--red)' : (TRAIN_COLOR[t.type] || 'var(--slate)');
-        const line = svgEl('polyline', {
-            points: pts, fill:'none', stroke:color, 'stroke-width': t.priority===1?2.2:1.4,
-            'stroke-dasharray': t.type==='FREIGHT' ? '5,4' : 'none',
-            'data-train': t.train_no, opacity:0.92,
+        const isDelayed=delay>0;
+        const color=isDelayed?'var(--red)':(TRAIN_COLOR[t.type]||'var(--slate)');
+        const line=svgEl('polyline',{
+            points:pts, fill:'none', stroke:color,
+            'stroke-width':t.priority===1?2.2:1.4,
+            'stroke-dasharray':t.type==='FREIGHT'?'5,4':'none',
+            'data-train':t.train_no, opacity:0.92, id:'tl_'+t.train_no
         });
-        line.addEventListener('mousemove', (e)=>showTooltip(e, `<div class="t-title">${t.train_no} · ${t.name}</div>${t.type} · priority ${t.priority}${isDelayed?`<br>delayed +${delay} min`:''}`));
-        line.addEventListener('mouseleave', hideTooltip);
+        line.addEventListener('mousemove',e=>showTooltip(e,
+            '<div class="t-title">'+t.train_no+' \u00b7 '+t.name+'</div>'+
+            t.type+' \u00b7 priority '+t.priority+
+            (isDelayed?'<br>\u23f1 delayed +'+delay+' min':'')
+        ));
+        line.addEventListener('mouseleave',hideTooltip);
         layer.appendChild(line);
     });
 }
 
-function drawCorridors(corridors){
-    const layer = document.getElementById('corridorLayer');
-    layer.innerHTML = '';
-    const isOverlayMode = document.getElementById('drmOverlayToggle').checked;
-    
-    corridors.forEach(c=>{
-        const x1 = timeToX(hhmmToMin(c.sanctioned_start));
-        const x2 = timeToX(hhmmToMin(c.sanctioned_end));
-        const y1 = kmToY(c.km_start);
-        const y2 = Math.max(kmToY(c.km_end), y1+6);
-        const color = DEPT_COLOR[c.primary_department] || DEPT_COLOR[c.departments?.[0]] || 'var(--slate)';
-        
-        const rectAttrs = {
-            x:x1, y:y1, width:Math.max(x2-x1,2), height:y2-y1,
-            stroke:color, 'stroke-width':1, 'class': isOverlayMode ? 'corridor-plan' : 'corridor-actual'
-        };
-        
-        if (isOverlayMode) {
-            rectAttrs['fill'] = 'none';
-            rectAttrs['stroke-dasharray'] = '4,4';
-            rectAttrs['stroke-width'] = '2';
-        } else {
-            rectAttrs['fill'] = color;
-            rectAttrs['opacity'] = '0.28';
-        }
-        
-        const rect = svgEl('rect', rectAttrs);
-        rect.style.cursor = 'pointer';
-        rect.addEventListener('mousemove', (e)=>showTooltip(e,
-            `<div class="t-title">${c.corridor_id} ${c.badge}</div>` +
-            `km ${c.km_start}–${c.km_end} · ${c.sanctioned_start}–${c.sanctioned_end}<br>` +
-            `machines: ${(c.machines_required||[]).length?c.machines_required.join(', '):'none'}<br>` +
-            `${c.ohe_block_active?'OHE block · ':''}${c.fouling_active?'fouling · ':''}${c.tsr_active?`TSR ${c.tsr_speed_kmh}km/h`:''}`
-        ));
-        rect.addEventListener('mouseleave', hideTooltip);
-        layer.appendChild(rect);
+// Ghost corridors: naive unoptimised positions shown DURING the solve
+// so the user clearly sees the before/after contrast.
+// Naively spread across morning slots so they collide with trains.
+function drawGhostCorridors(corridors) {
+    const layer=document.getElementById('ghostLayer'); layer.innerHTML='';
 
-        if (!isOverlayMode) {
-            const badgeLabel = svgEl('text', {x:x1+4, y:y1+12, class:'axis-label', fill:'var(--text)'});
-            badgeLabel.textContent = c.badge;
-            layer.appendChild(badgeLabel);
+    // Header label
+    const hdr=svgEl('text',{
+        x:MARGIN.left+6, y:MARGIN.top+16,
+        fill:'#e8a33d', style:'font-size:11px;font-weight:700;font-family:monospace;opacity:0.9'
+    });
+    hdr.textContent='\u23f3 UNOPTIMISED (naive slots) \u2014 AI solving\u2026';
+    layer.appendChild(hdr);
+
+    corridors.forEach((c,i)=>{
+        // Naive placement: pack all into first half of day
+        // deliberately overlapping train paths to show the problem
+        const naiveStart = SIM_START + 30 + (i % 8) * 75;
+        const naiveEnd   = naiveStart + c.duration_min;
+        const x1=timeToX(naiveStart), x2=timeToX(naiveEnd);
+        const y1=kmToY(c.km_start),   y2=Math.max(kmToY(c.km_end),y1+8);
+        const barW=Math.max(x2-x1,3), barH=y2-y1;
+        const depts=(c.departments&&c.departments.length)?c.departments:[c.primary_department];
+
+        const g=svgEl('g',{class:'corridor-ghost'});
+
+        // Filled background strips per dept (same as optimised, but faded)
+        const stripH=Math.max(barH/depts.length,3);
+        depts.forEach((dept,di)=>{
+            const hex=DEPT_HEX[dept]||'#8791a1';
+            g.appendChild(svgEl('rect',{
+                x:x1, y:y1+di*stripH, width:barW, height:stripH,
+                fill:hex, opacity:'0.28', stroke:'none'
+            }));
+        });
+
+        // Amber dashed border - pulsing (CSS animation on .corridor-ghost)
+        g.appendChild(svgEl('rect',{
+            x:x1,y:y1,width:barW,height:barH,
+            fill:'none', stroke:'#e8a33d',
+            'stroke-width':'1.5', 'stroke-dasharray':'4,3'
+        }));
+
+        // Short dept label
+        if(barW>20) {
+            const lbl=svgEl('text',{x:x1+3,y:y1+10,class:'ghost-label'});
+            lbl.textContent=depts.join('+');
+            g.appendChild(lbl);
+        }
+
+        layer.appendChild(g);
+    });
+}
+
+// Optimised corridor blocks with animated placement and per-dept color strips
+function drawCorridors(corridors, animate) {
+    const layer=document.getElementById('corridorLayer'); layer.innerHTML='';
+    const isOverlay=document.getElementById('drmOverlayToggle').checked;
+
+    corridors.forEach((c,idx)=>{
+        const x1=timeToX(hhmmToMin(c.sanctioned_start));
+        const x2=timeToX(hhmmToMin(c.sanctioned_end));
+        const y1=kmToY(c.km_start);
+        const y2=Math.max(kmToY(c.km_end),y1+6);
+        const barW=Math.max(x2-x1,2), barH=y2-y1;
+        const depts=(c.departments&&c.departments.length)?c.departments:[c.primary_department];
+        const hasConflict=(c.conflicts||[]).length>0;
+
+        const g=svgEl('g',{class:'corridor-group','data-corridor':c.corridor_id});
+
+        // Staggered fade-in from left
+        if(animate) {
+            g.style.opacity='0';
+            g.style.transform='translateX(-20px)';
+            setTimeout(()=>{
+                g.style.transition='opacity 0.4s ease,transform 0.4s ease';
+                g.style.opacity='1';
+                g.style.transform='translateX(0)';
+            }, 60+idx*70);
+        }
+
+        if(isOverlay) {
+            g.appendChild(svgEl('rect',{
+                x:x1,y:y1,width:barW,height:barH,fill:'none',
+                stroke:DEPT_CSS[c.primary_department]||'var(--slate)',
+                'stroke-dasharray':'4,4','stroke-width':'2'
+            }));
+        } else {
+            // Per-department horizontal strips  one band per dept
+            const stripH=Math.max(barH/depts.length,3);
+            depts.forEach((dept,di)=>{
+                const hex=DEPT_HEX[dept]||'#8791a1';
+                g.appendChild(svgEl('rect',{
+                    x:x1,y:y1+di*stripH,width:barW,height:stripH,
+                    fill:hex,opacity:'0.35',stroke:'none'
+                }));
+            });
+            // Border: red if conflict, otherwise primary dept colour
+            g.appendChild(svgEl('rect',{
+                x:x1,y:y1,width:barW,height:barH,fill:'none',
+                stroke:hasConflict?'var(--red)':(DEPT_CSS[c.primary_department]||'var(--slate)'),
+                'stroke-width':hasConflict?'2':'1.5'
+            }));
+            // Department abbreviation label
+            if(barW>24) {
+                const lbl=svgEl('text',{x:x1+4,y:y1+11,fill:'#e4e8ee',
+                    style:'font-size:9px;font-weight:700;font-family:monospace'});
+                lbl.textContent=depts.join('+'); g.appendChild(lbl);
+            }
+            // Status dot: red = conflict, teal = clear
+            if(hasConflict) {
+                g.appendChild(svgEl('circle',{cx:x2-4,cy:y1+4,r:'3.5',
+                    fill:'var(--red)',stroke:'#0e1218','stroke-width':'1'}));
+            } else {
+                g.appendChild(svgEl('circle',{cx:x2-4,cy:y1+4,r:'3',
+                    fill:'var(--teal)',stroke:'#0e1218','stroke-width':'1',opacity:'0.85'}));
+            }
+        }
+
+        // Invisible hit area for tooltip
+        const deptNames={CIVIL:'Civil Engg',TRD:'OHE/TRD',SNT:'Signal & Telecom'};
+        const deptList=depts.map(d=>deptNames[d]||d).join(' + ');
+        const conflictInfo=hasConflict
+            ? '<span style="color:var(--red)">\u26a0 '+c.conflicts.length+' conflict(s)</span>'
+            : '<span style="color:var(--teal)">\u2713 Conflict-free slot</span>';
+        const hit=svgEl('rect',{x:x1,y:y1,width:Math.max(barW,12),
+            height:Math.max(barH,12),fill:'transparent',style:'cursor:pointer'});
+        hit.addEventListener('mousemove',e=>showTooltip(e,
+            '<div class="t-title">'+c.corridor_id+'</div>'+
+            '<b>'+deptList+'</b><br>'+
+            'km '+c.km_start+'\u2013'+c.km_end+'<br>'+
+            c.sanctioned_start+'\u2013'+c.sanctioned_end+' ('+c.duration_min+' min)<br>'+
+            conflictInfo+'<br>'+
+            (c.ohe_block_active?'OHE block &nbsp;':'')+
+            (c.fouling_active?'Fouling &nbsp;':'')+
+            (c.tsr_active?'TSR '+c.tsr_speed_kmh+'km/h':'')
+        ));
+        hit.addEventListener('mouseleave',hideTooltip);
+        g.appendChild(hit);
+        layer.appendChild(g);
+    });
+}
+
+// Highlight train lines that have residual corridor conflicts (glow red)
+function highlightConflictTrains(corridors) {
+    const conflicted=new Set();
+    corridors.forEach(c=>(c.conflicts||[]).forEach(cf=>{
+        if(cf.train_no) conflicted.add(cf.train_no);
+    }));
+    state.trains.forEach(t=>{
+        const el=document.getElementById('tl_'+t.train_no);
+        if(!el) return;
+        if(conflicted.has(t.train_no)) {
+            el.setAttribute('stroke','var(--red)');
+            el.setAttribute('stroke-width','2.5');
+            el.style.filter='drop-shadow(0 0 4px rgba(209,85,74,0.75))';
+        } else {
+            const delay=state.injectedDelays[t.train_no]||0;
+            const color=delay>0?'var(--red)':(TRAIN_COLOR[t.type]||'var(--slate)');
+            el.setAttribute('stroke',color);
+            el.setAttribute('stroke-width',t.priority===1?'2.2':'1.4');
+            el.style.filter='';
         }
     });
 }
 
-function showTooltip(e, html){
-    const tip = document.getElementById('tooltip');
-    tip.innerHTML = html;
-    tip.style.display = 'block';
-    tip.style.left = (e.clientX+14)+'px';
-    tip.style.top = (e.clientY+14)+'px';
+// Show optimisation result pill bar
+function showOptimizationSummary(result) {
+    const corridors=result.corridors||[], kpis=result.kpis||{};
+    const multiDept=corridors.filter(c=>(c.departments||[]).length>1).length;
+    const conflictFree=corridors.filter(c=>(c.conflicts||[]).length===0).length;
+    const totalConflicts=corridors.reduce((s,c)=>s+(c.conflicts||[]).length,0);
+    const overlay=document.getElementById('summaryOverlay');
+    overlay.style.opacity='1'; overlay.style.display='block';
+    overlay.innerHTML=
+        '<div class="opt-summary-bar">'+
+        '<span style="font-family:var(--font-mono);font-size:12px;color:var(--text-dim);margin-right:4px">AI result \u2192</span>'+
+        '<span class="opt-summary-chip ok">\u2713 '+conflictFree+'/'+corridors.length+' conflict-free</span>'+
+        '<span class="opt-summary-chip club">\u2295 '+multiDept+' multi-dept clubbed</span>'+
+        (totalConflicts>0?'<span class="opt-summary-chip warn">\u26a0 '+totalConflicts+' residual conflict(s)</span>':'')+
+        '<span class="opt-summary-chip eff">'+(kpis.total_secondary_delay_prevented_min||0)+' min secondary delay saved</span>'+
+        '<span class="opt-summary-chip">'+(kpis.num_corridors||corridors.length)+' corridors \u00b7 '+(kpis.corridor_utilization_rate_pct||0)+'% utilization</span>'+
+        '<span class="opt-summary-chip">solved in '+(kpis.solve_time_sec||'<1')+'s</span>'+
+        '</div>';
+    clearTimeout(overlay._t);
+    overlay._t=setTimeout(()=>{
+        overlay.style.transition='opacity 0.8s ease'; overlay.style.opacity='0';
+        setTimeout(()=>{overlay.style.display='none';overlay.style.opacity='1';overlay.style.transition='';},800);
+    },10000);
 }
-function hideTooltip(){ document.getElementById('tooltip').style.display = 'none'; }
 
-async function runOptimize(){
-    const btn = document.getElementById('btnOptimize');
-    btn.disabled = true; btn.textContent = 'Optimizing…';
-    try{
-        const result = await apiPost('/api/v1/optimize', {});
-        state.lastSchedule = result;
-        drawCorridors(result.corridors);
-        document.getElementById('kpiDelayPrevented').innerHTML = `${result.kpis.total_secondary_delay_prevented_min}<span class="unit">min</span>`;
-        document.getElementById('kpiUtilization').innerHTML = `${result.kpis.corridor_utilization_rate_pct}<span class="unit">%</span>`;
-        showToast('Corridors optimized successfully', 'success');
-    }catch(e){
-        showToast('Optimization failed', 'error');
+function setChartLoading(on) {
+    document.getElementById('chartContainer').classList.toggle('chart-loading',on);
+    document.getElementById('optimizeStatus').textContent=on?'solving\u2026':'';
+}
+
+// Show idle CTA overlay (before first optimization)
+function showIdleCta() {
+    const ov=document.getElementById('idleCtaOverlay');
+    if(ov) ov.classList.add('show');
+    // KPI placeholders
+    document.getElementById('kpiDelayPrevented').innerHTML='&mdash;<span class="unit">min</span>';
+    document.getElementById('kpiUtilization').innerHTML='&mdash;<span class="unit">%</span>';
+    document.getElementById('kpiDeadMileage').innerHTML='&mdash;<span class="unit">km</span>';
+}
+function clearIdleCta() {
+    const ov=document.getElementById('idleCtaOverlay');
+    if(ov) ov.classList.remove('show');
+}
+function showTooltip(e,html) {
+    const tip=document.getElementById('tooltip');
+    tip.innerHTML=html; tip.style.display='block';
+    tip.style.left=(e.clientX+14)+'px'; tip.style.top=(e.clientY+14)+'px';
+}
+function hideTooltip() { document.getElementById('tooltip').style.display='none'; }
+
+// =============================================================================
+//  CORE: Run AI corridor optimisation
+// =============================================================================
+async function runOptimize() {
+    const btn=document.getElementById('btnOptimize');
+    btn.disabled=true; btn.classList.add('solving'); btn.textContent='AI Solving\u2026';
+    clearIdleCta();  // hide the idle overlay as soon as user clicks
+    setChartLoading(true);
+    try {
+        // === PHASE 1: Show ghost (naive, unoptimised) state ===
+        // Works on first load: fetch raw clustered corridors from /demands.
+        // On subsequent calls: use the previous optimised schedule as source.
+        let ghostCorridors = null;
+        if(state.lastSchedule && state.lastSchedule.corridors && state.lastSchedule.corridors.length) {
+            ghostCorridors = state.lastSchedule.corridors;
+        } else {
+            // First load: fetch raw demand clusters to have something to ghost
+            try {
+                const demands = await api('/api/v1/demands');
+                ghostCorridors = demands.clustered_corridors || [];
+            } catch(_) {}
+        }
+        if(ghostCorridors && ghostCorridors.length) {
+            drawGhostCorridors(ghostCorridors);
+            document.getElementById('corridorLayer').innerHTML='';
+            // Let the ghost render for at least one frame before kicking off solve
+            await new Promise(r=>setTimeout(r,80));
+        }
+
+        // === PHASE 2: Run the CP-SAT solver (ghost remains visible during this) ===
+        // The solver takes ~100-300ms, so the ghost is naturally visible that whole time.
+        const result=await apiPost('/api/v1/optimize',{});
+        state.lastSchedule=result;
+
+        // === PHASE 3: Swap ghost -> animated optimised corridors ===
+        document.getElementById('ghostLayer').innerHTML='';
+        drawCorridors(result.corridors, true);
+        highlightConflictTrains(result.corridors);
+        showOptimizationSummary(result);
+
+        // KPI bar
+        document.getElementById('kpiDelayPrevented').innerHTML=
+            result.kpis.total_secondary_delay_prevented_min+'<span class="unit">min</span>';
+        document.getElementById('kpiUtilization').innerHTML=
+            result.kpis.corridor_utilization_rate_pct+'<span class="unit">%</span>';
+        const multiDept=(result.corridors||[]).filter(c=>(c.departments||[]).length>1).length;
+        showToast(
+            '\u2713 Optimised '+result.corridors.length+' corridors \u00b7 '+
+            multiDept+' multi-dept clubbed \u00b7 '+
+            result.kpis.corridor_utilization_rate_pct+'% utilization',
+            'success'
+        );
+        saveMareyState();
+    } catch(e) {
+        showToast('Optimization failed: '+e.message,'error'); console.error(e);
     } finally {
-        btn.disabled = false; btn.textContent = 'Run AI Corridor Optimization';
+        setChartLoading(false);
+        btn.disabled=false; btn.classList.remove('solving');
+        btn.textContent='Run AI Corridor Optimization';
     }
 }
 
-async function loadKpis(){
-    try{
-        const kpis = await api('/api/v1/kpis');
-        document.getElementById('kpiDeadMileage').innerHTML = `${kpis.dead_mileage_saved_km}<span class="unit">km</span>`;
-        const fleetList = document.getElementById('fleetList');
-        fleetList.innerHTML = '';
-        const stateColor = {IDLE:'var(--green)', WORKING:'var(--amber)', TRANSIT:'var(--blue)'};
+async function loadKpis() {
+    try {
+        const kpis=await api('/api/v1/kpis');
+        document.getElementById('kpiDeadMileage').innerHTML=
+            kpis.dead_mileage_saved_km+'<span class="unit">km</span>';
+        const fleetList=document.getElementById('fleetList'); fleetList.innerHTML='';
+        const stateColor={IDLE:'var(--green)',WORKING:'var(--amber)',TRANSIT:'var(--blue)'};
         Object.entries(kpis.fleet_status).forEach(([asset,st])=>{
-            const tag = document.createElement('span');
-            tag.className = 'fleet-tag';
-            tag.innerHTML = `<span class="sw" style="background:${stateColor[st]||'var(--slate)'}"></span>${asset}: ${st.toLowerCase()}`;
+            const tag=document.createElement('span'); tag.className='fleet-tag';
+            tag.innerHTML='<span class="sw" style="background:'+(stateColor[st]||'var(--slate)')+'"></span>'+asset+': '+st.toLowerCase();
             fleetList.appendChild(tag);
         });
-    }catch(e){ console.error(e); }
+    } catch(e) { console.error(e); }
 }
 
-async function simulateIncident(){
-    const trainNo = document.getElementById('trainSelect').value;
-    const delayMin = Number(document.getElementById('delaySlider').value);
-    const btn = document.getElementById('btnSimulate');
-    btn.disabled = true; btn.textContent = 'Simulating…';
-    try{
-        const result = await apiPost('/api/v1/simulate-delay', {train_no: trainNo, delay_minutes: delayMin});
-        state.injectedDelays[trainNo] = result.total_injected_delay_minutes;
-        state.currentMatrices = result.trade_off_matrices;
-        if(state.lastSchedule) drawCorridors(result.conflicts_detected.length ? scheduleFromConflicts() : state.lastSchedule.corridors);
+async function simulateIncident() {
+    const trainNo=document.getElementById('trainSelect').value;
+    const delayMin=Number(document.getElementById('delaySlider').value);
+    const btn=document.getElementById('btnSimulate');
+    btn.disabled=true; btn.textContent='Simulating\u2026';
+    try {
+        const result=await apiPost('/api/v1/simulate-delay',{train_no:trainNo,delay_minutes:delayMin});
+        state.injectedDelays[trainNo]=result.total_injected_delay_minutes;
+        state.currentMatrices=result.trade_off_matrices;
         drawTrains(state.injectedDelays);
-        await runOptimize(); 
+        await runOptimize();
         drawTrains(state.injectedDelays);
-
-        const banner = document.getElementById('conflictBanner');
-        if(result.conflicts_detected.length){
-            document.getElementById('conflictBannerText').textContent =
-                `${trainNo} now conflicts with ${result.conflicts_detected.length} sanctioned corridor(s) after a +${delayMin}min delay.`;
+        const banner=document.getElementById('conflictBanner');
+        if(result.conflicts_detected.length) {
+            document.getElementById('conflictBannerText').textContent=
+                trainNo+' now conflicts with '+result.conflicts_detected.length+
+                ' sanctioned corridor(s) after a +'+delayMin+' min delay.';
             banner.classList.add('show');
-        } else {
-            banner.classList.remove('show');
-        }
+        } else { banner.classList.remove('show'); }
         await loadKpis();
-    }catch(e){
-        showToast('Simulation failed', 'error');
-    } finally {
-        btn.disabled = false; btn.textContent = 'Simulate Incident';
-    }
+        saveMareyState();
+    } catch(e) { showToast('Simulation failed','error'); }
+    finally { btn.disabled=false; btn.textContent='Simulate Incident'; }
 }
 
-function scheduleFromConflicts(){ return state.lastSchedule ? state.lastSchedule.corridors : []; }
-
-function openArbitrationModal(){
-    const overlay = document.getElementById('modalOverlay');
-    const body = document.getElementById('modalBody');
-    const subtitle = document.getElementById('modalSubtitle');
-    body.innerHTML = '';
-
-    if(!state.currentMatrices.length){
-        subtitle.textContent = 'No active conflicts';
-        body.innerHTML = '<p style="color:var(--text-dim)">No trade-off matrix to show — simulate a delay that collides with a sanctioned corridor first.</p>';
-        overlay.classList.add('show');
-        return;
+function openArbitrationModal() {
+    const overlay=document.getElementById('modalOverlay');
+    const body=document.getElementById('modalBody');
+    const subtitle=document.getElementById('modalSubtitle');
+    body.innerHTML='';
+    if(!state.currentMatrices.length) {
+        subtitle.textContent='No active conflicts';
+        body.innerHTML='<p style="color:var(--text-dim)">No trade-off matrix &mdash; simulate a delay that collides with a sanctioned corridor first.</p>';
+        overlay.classList.add('show'); return;
     }
-    subtitle.textContent = `${state.currentMatrices.length} conflict(s) awaiting a decision`;
-
+    subtitle.textContent=state.currentMatrices.length+' conflict(s) awaiting a decision';
     state.currentMatrices.forEach(matrix=>{
-        const block = document.createElement('div');
-        block.className = 'matrix-block';
-        const head = document.createElement('div');
-        head.innerHTML = `<div style="font-weight:600;margin-bottom:2px">${matrix.train_no} · ${matrix.train_name || ''}</div>
-            <div style="color:var(--text-dim);font-family:var(--font-mono);font-size:12px;margin-bottom:12px">
-                ${matrix.corridor_id} · sanctioned ${matrix.corridor_window || ''}</div>`;
-        block.appendChild(head);
-
-        const grid = document.createElement('div');
-        grid.className = 'options-grid';
+        const block=document.createElement('div'); block.className='matrix-block';
+        block.innerHTML=
+            '<div style="font-weight:600;margin-bottom:2px">'+matrix.train_no+' \u00b7 '+(matrix.train_name||'')+'</div>'+
+            '<div style="color:var(--text-dim);font-family:var(--font-mono);font-size:12px;margin-bottom:12px">'+
+            matrix.corridor_id+' \u00b7 sanctioned '+(matrix.corridor_window||'')+'</div>';
+        const grid=document.createElement('div'); grid.className='options-grid';
         matrix.options.forEach(opt=>{
-            const card = document.createElement('div');
-            card.className = 'option-card' + (opt.option === matrix.recommended_option ? ' suggested' : '');
-            const metrics = Object.entries(opt).filter(([k])=>k.endsWith('_min') || k.endsWith('_cost') || k==='penalty_score')
-                .map(([k,v])=>`<div>${k.replace(/_/g,' ')}: <span class="num">${v}</span></div>`).join('');
-            card.innerHTML = `
-                <div class="opt-label">${opt.label}</div>
-                ${opt.option === matrix.recommended_option ? '<div class="opt-suggested-tag">Suggested option</div>' : ''}
-                <div class="opt-action">${opt.action}</div>
-                <div class="opt-metrics">${metrics}</div>
-                <div class="opt-notes">${opt.notes || ''}</div>
-            `;
-            const applyBtn = document.createElement('button');
-            applyBtn.textContent = 'Select & Apply';
-            applyBtn.addEventListener('click', ()=>applyArbitration(matrix.train_no, matrix.corridor_id, opt.option, applyBtn));
-            card.appendChild(applyBtn);
-            grid.appendChild(card);
+            const card=document.createElement('div');
+            const isSuggested = opt.option===matrix.recommended_option;
+            card.className='option-card'+(isSuggested?' suggested selected':'');
+            const metrics=Object.entries(opt)
+                .filter(([k])=>k.endsWith('_min')||k.endsWith('_cost')||k==='penalty_score')
+                .map(([k,v])=>'<div>'+k.replace(/_/g,' ')+': <span class="num">'+v+'</span></div>')
+                .join('');
+            card.innerHTML=
+                '<div class="opt-label">'+opt.label+'</div>'+
+                (isSuggested?'<div class="opt-suggested-tag">Suggested option</div>':'')+
+                '<div class="opt-action">'+opt.action+'</div>'+
+                '<div class="opt-metrics">'+metrics+'</div>'+
+                '<div class="opt-notes">'+(opt.notes||'')+'</div>';
+            card.addEventListener('click',()=>{
+                grid.querySelectorAll('.option-card').forEach(c=>c.classList.remove('selected'));
+                card.classList.add('selected');
+            });
+            const applyBtn=document.createElement('button');
+            applyBtn.textContent='Select & Apply';
+            applyBtn.addEventListener('click',(e)=>{
+                e.stopPropagation();
+                grid.querySelectorAll('.option-card').forEach(c=>c.classList.remove('selected'));
+                card.classList.add('selected');
+                applyArbitration(matrix.train_no,matrix.corridor_id,opt.option,applyBtn);
+            });
+            card.appendChild(applyBtn); grid.appendChild(card);
         });
-        block.appendChild(grid);
-        body.appendChild(block);
+        block.appendChild(grid); body.appendChild(block);
     });
-
     overlay.classList.add('show');
 }
 
-async function applyArbitration(trainNo, corridorId, option, btn){
-    btn.disabled = true; btn.textContent = 'Applying…';
-    try{
-        const res = await apiPost('/api/v1/arbitrate', {train_no: trainNo, corridor_id: corridorId, option});
-        
-        // Save to localStorage for the Arbitration Log page
-        if (res && res.session_log) {
-            localStorage.setItem('railsync_arbitration_log', JSON.stringify(res.session_log));
+async function applyArbitration(trainNo,corridorId,option,btn) {
+    btn.disabled=true; btn.textContent='Applying\u2026';
+    try {
+        const res=await apiPost('/api/v1/arbitrate',{train_no:trainNo,corridor_id:corridorId,option});
+        if(res&&res.session_log) {
+            localStorage.setItem('railsync_arbitration_log',JSON.stringify(res.session_log));
         } else {
-            // Fallback manual logging if session_log isn't returned natively
-            let log = JSON.parse(localStorage.getItem('railsync_arbitration_log') || '[]');
-            log.push({
-                timestamp: new Date().toISOString(),
-                train_no: trainNo,
-                corridor_id: corridorId,
-                option_chosen: option,
-                outcome: res.applied ? 'Applied' : 'Logged'
-            });
-            localStorage.setItem('railsync_arbitration_log', JSON.stringify(log));
+            let log=JSON.parse(localStorage.getItem('railsync_arbitration_log')||'[]');
+            log.push({timestamp:new Date().toISOString(),train_no:trainNo,corridor_id:corridorId,option_chosen:option,outcome:res.applied?'Applied':'Logged'});
+            localStorage.setItem('railsync_arbitration_log',JSON.stringify(log));
         }
-
         document.getElementById('modalOverlay').classList.remove('show');
         document.getElementById('conflictBanner').classList.remove('show');
-        await runOptimize();
-        await loadKpis();
-        drawTrains(state.injectedDelays);
-        showToast('Arbitration applied successfully', 'success');
-    }catch(e){
-        console.error(e);
-        btn.textContent = 'Failed — retry';
-        btn.disabled = false;
-        showToast('Arbitration failed', 'error');
+        await runOptimize(); await loadKpis(); drawTrains(state.injectedDelays);
+        saveMareyState();
+        showToast('Arbitration applied successfully','success');
+    } catch(e) {
+        console.error(e); btn.textContent='Failed \u2014 retry'; btn.disabled=false;
+        showToast('Arbitration failed','error');
     }
 }
 
-async function resetSession(){
-    await apiPost('/api/v1/reset-session', {});
-    state.injectedDelays = {};
-    state.currentMatrices = [];
+async function resetSession() {
+    try {
+        await apiPost('/api/v1/reset-session',{});
+    } catch(e) {}
+    localStorage.removeItem('railsync_marey_optimized');
+    sessionStorage.removeItem('railsync_marey_optimized');
+    sessionStorage.removeItem('railsync_marey_optimized_flag');
+    sessionStorage.removeItem('railsync_planning_optimized');
+    state.lastSchedule=null; state.injectedDelays={}; state.currentMatrices=[];
     document.getElementById('conflictBanner').classList.remove('show');
+    document.getElementById('summaryOverlay').style.display='none';
+    document.getElementById('ghostLayer').innerHTML='';
+    document.getElementById('corridorLayer').innerHTML='';
     drawTrains();
-    await runOptimize();
+    showIdleCta();
     await loadKpis();
-    showToast('Session reset', 'info');
+    showToast('Session reset','info');
 }
-
-// ----- Enhancements: TMS and SCADA -----
 
 async function fetchRealtimeData() {
     try {
-        const tmsPositions = await api('/api/v1/ingest/tms');
-        const layer = document.getElementById('tmsLayer');
-        layer.innerHTML = '';
-        
-        // Ensure time is in 06:00 to 18:00 range, fallback to fixed sim time if outside
-        let nowMin = new Date().getHours() * 60 + new Date().getMinutes();
-        if (nowMin < SIM_START || nowMin > SIM_END) nowMin = 10 * 60; // Mock 10:00 AM
-
-        tmsPositions.forEach(pos => {
-            const circle = svgEl('circle', {
-                cx: timeToX(nowMin), cy: kmToY(pos.current_km || pos.km), r: 4,
-                fill: '#fff', stroke: 'var(--amber)', 'stroke-width': 1.5,
-                class: 'tms-dot'
-            });
-            circle.addEventListener('mousemove', (e)=>showTooltip(e, `<div class="t-title">Live: ${pos.train_no}</div>km ${pos.current_km||pos.km}`));
-            circle.addEventListener('mouseleave', hideTooltip);
+        const tmsPositions=await api('/api/v1/ingest/tms');
+        const layer=document.getElementById('tmsLayer'); layer.innerHTML='';
+        let nowMin=new Date().getHours()*60+new Date().getMinutes();
+        if(nowMin<SIM_START||nowMin>SIM_END) nowMin=10*60;
+        tmsPositions.forEach(pos=>{
+            const circle=svgEl('circle',{cx:timeToX(nowMin),cy:kmToY(pos.current_km||pos.km),
+                r:4,fill:'#fff',stroke:'var(--amber)','stroke-width':1.5,class:'tms-dot'});
+            circle.addEventListener('mousemove',e=>showTooltip(e,'<div class="t-title">Live: '+pos.train_no+'</div>km '+(pos.current_km||pos.km)));
+            circle.addEventListener('mouseleave',hideTooltip);
             layer.appendChild(circle);
-        });
-    } catch(e) {
-        // Silent fail for polling if endpoint not ready
-    }
-}
-
-async function fetchScadaData() {
-    try {
-        const scada = await api('/api/v1/ingest/scada');
-        const layer = document.getElementById('scadaLayer');
-        layer.innerHTML = '';
-        
-        scada.forEach(eq => {
-            if (eq.fault_flag) {
-                const y = kmToY(eq.km);
-                const x = MARGIN.left;
-                // Draw a small red triangle on the y-axis
-                const triangle = svgEl('polygon', {
-                    points: `${x-10},${y-5} ${x},${y} ${x-10},${y+5}`,
-                    fill: 'var(--red)',
-                    style: 'cursor:pointer'
-                });
-                triangle.addEventListener('mousemove', (e)=>showTooltip(e, `<div class="t-title">SCADA Fault</div>Eq: ${eq.equipment_id}<br>km ${eq.km}`));
-                triangle.addEventListener('mouseleave', hideTooltip);
-                layer.appendChild(triangle);
-            }
         });
     } catch(e) {}
 }
 
-document.getElementById('drmOverlayToggle').addEventListener('change', () => {
-    if(state.lastSchedule) drawCorridors(state.lastSchedule.corridors);
-});
+async function fetchScadaData() {
+    try {
+        const scada=await api('/api/v1/ingest/scada');
+        const layer=document.getElementById('scadaLayer'); layer.innerHTML='';
+        scada.forEach(eq=>{
+            if(!eq.fault_flag) return;
+            const y=kmToY(eq.km), x=MARGIN.left;
+            const tri=svgEl('polygon',{points:(x-10)+','+(y-5)+' '+x+','+y+' '+(x-10)+','+(y+5),
+                fill:'var(--red)',style:'cursor:pointer'});
+            tri.addEventListener('mousemove',e=>showTooltip(e,'<div class="t-title">SCADA Fault</div>Eq: '+eq.equipment_id+'<br>km '+eq.km));
+            tri.addEventListener('mouseleave',hideTooltip);
+            layer.appendChild(tri);
+        });
+    } catch(e) {}
+}
 
-document.getElementById('delaySlider').addEventListener('input', (e)=>{
-    document.getElementById('delayValue').textContent = `${e.target.value} min`;
+// Event wiring
+document.getElementById('drmOverlayToggle').addEventListener('change',()=>{
+    if(state.lastSchedule) drawCorridors(state.lastSchedule.corridors,false);
 });
-document.getElementById('btnOptimize').addEventListener('click', runOptimize);
-document.getElementById('btnSimulate').addEventListener('click', simulateIncident);
-document.getElementById('btnReset').addEventListener('click', resetSession);
-document.getElementById('conflictBannerBtn').addEventListener('click', openArbitrationModal);
-document.getElementById('modalClose').addEventListener('click', ()=>document.getElementById('modalOverlay').classList.remove('show'));
-document.getElementById('modalOverlay').addEventListener('click', (e)=>{ if(e.target.id==='modalOverlay') e.currentTarget.classList.remove('show'); });
+document.getElementById('delaySlider').addEventListener('input',e=>{
+    document.getElementById('delayValue').textContent=e.target.value+' min';
+});
+document.getElementById('btnOptimize').addEventListener('click',runOptimize);
+document.getElementById('btnSimulate').addEventListener('click',simulateIncident);
+document.getElementById('btnReset').addEventListener('click',resetSession);
+document.getElementById('conflictBannerBtn').addEventListener('click',openArbitrationModal);
+document.getElementById('modalClose').addEventListener('click',()=>document.getElementById('modalOverlay').classList.remove('show'));
+document.getElementById('modalOverlay').addEventListener('click',e=>{if(e.target.id==='modalOverlay')e.currentTarget.classList.remove('show');});
 
 init();
 </script>

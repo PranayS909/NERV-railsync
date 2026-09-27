@@ -69,7 +69,7 @@ def _build_corridor(corridor_id, members):
 
     km_start = min(d["km_start"] for d in members)
     km_end = max(d["km_end"] for d in members)
-    duration = max(d["duration_min"] for d in members)  # Duration_Corridor = max(D_Civil, D_TRD, D_S&T)
+    duration = max((d.get("duration_min") or 0) for d in members) or 60  # Duration_Corridor = max(D_Civil, D_TRD, D_S&T)
 
     departments = sorted({d["department"] for d in members}, key=lambda x: DEPARTMENT_PRIORITY.get(x, 9))
     badge = "[" + " + ".join(departments) + "]"

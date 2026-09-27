@@ -1,0 +1,52 @@
+# Python Virtual Environments
+venv/
+env/
+.venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Pytest / Testing / Tooling Caches
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# Environment Variables & Secrets
+.env
+.env.*
+!.env.example
+
+# Local Databases & Data Dumps
+*.db
+*.sqlite
+*.sqlite3
+*.log
+tmp/
+
+# Node & Frontend Build Tools
+node_modules/
+dist/
+build/
+.cache/
+
+# IDEs, Editors & OS Files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+ehthumbs.db
+
+# Agent & Scratch Files
+.gemini/
+scratch_*.py
+write_marey.py

@@ -116,14 +116,16 @@ function renderHeatmap(data) {
 
 function showSegmentDetails(seg) {
     const panel = document.getElementById('segmentDetails');
+    const stationLabel = seg.nearest_station ? `<div style="grid-column: span 2; margin-bottom: 4px;"><strong>Nearest Station / Block:</strong> ${seg.nearest_station}</div>` : '';
     panel.innerHTML = `
         <h3 style="margin: 0 0 10px;">Km ${seg.segment_km_start} - ${seg.segment_km_end}</h3>
+        ${stationLabel}
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 13px;">
-            <div><span style="color:var(--text-dim);">TGI Score:</span> <strong style="color:var(--amber);">${seg.track_geometry_index}</strong></div>
+            <div><span style="color:var(--text-dim);">TGI Score:</span> <strong style="color:${seg.track_geometry_index < 60 ? 'var(--red)' : (seg.track_geometry_index < 80 ? 'var(--amber)' : 'var(--green)')};">${seg.track_geometry_index}</strong></div>
             <div><span style="color:var(--text-dim);">Overdue:</span> ${seg.overdue_maintenance_days} days</div>
             <div><span style="color:var(--text-dim);">Vertical g:</span> ${seg.oms_vertical_g}</div>
             <div><span style="color:var(--text-dim);">Lateral g:</span> ${seg.oms_lateral_g}</div>
-            <div><span style="color:var(--text-dim);">Criticality:</span> ${seg.criticality_score}/100</div>
+            <div><span style="color:var(--text-dim);">Criticality:</span> ${seg.criticality_score}/10</div>
             <div><span style="color:var(--text-dim);">Urgent:</span> <span class="badge ${seg.oms_flag_urgent ? 'badge-red' : 'badge-green'}">${seg.oms_flag_urgent ? 'YES' : 'NO'}</span></div>
         </div>
     `;
@@ -173,14 +175,17 @@ async function loadScada() {
         
         data.forEach(eq => {
             const tr = document.createElement('tr');
-            const faultBadge = eq.fault_flag ? '<span class="badge badge-red">FAULT</span>' : '<span class="badge badge-green">OK</span>';
+            const faultBadge = eq.fault_flag 
+                ? `<span class="badge badge-red" title="${eq.fault_description || 'Fault'}">FAULT (${eq.fault_description || 'Warning'})</span>` 
+                : '<span class="badge badge-green">OK</span>';
+            const temp = eq.temp_c ?? eq.temperature_c ?? 40;
             
             tr.innerHTML = `
-                <td><div style="font-family:var(--font-mono);">${eq.equipment_id}</div></td>
-                <td>${eq.km}</td>
-                <td>${eq.voltage_kv}</td>
-                <td>${eq.current_a}</td>
-                <td>${eq.temperature_c}</td>
+                <td><div style="font-family:var(--font-mono); font-weight:600; color:var(--amber);">${eq.equipment_id}</div></td>
+                <td>km ${eq.km}</td>
+                <td>${eq.voltage_kv} kV</td>
+                <td>${eq.current_a} A</td>
+                <td>${temp} °C</td>
                 <td>${faultBadge}</td>
             `;
             tbody.appendChild(tr);

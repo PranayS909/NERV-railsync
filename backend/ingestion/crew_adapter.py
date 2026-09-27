@@ -24,21 +24,18 @@ def to_internal(raw):
 
 def _generate_mock():
     """Generate realistic synthetic data."""
-    data = []
-    # 8-10 crew members
-    for i in range(10):
-        data.append({
-            "loco_no": f"WAP-7 {30000 + random.randint(100, 999)}",
-            "driver_id": f"DRV-GZB-{i:03d}",
-            "driver_name": f"Driver {i}",
-            "duty_start": f"{random.randint(4, 12):02d}:00",
-            "duty_hours_remaining": round(random.uniform(2.0, 8.0), 1),
-            "home_depot": random.choice(["GZB", "ALJN"]),
-            "current_km": round(random.uniform(0.0, 150.0), 1),
-            "linked_train_no": str(random.choice([20958, 12424, 12004, 14218, 64102])),
-            "status": random.choice(["ON_DUTY", "RESTING", "AVAILABLE"]),
-        })
-    return data
+    sample_crew = [
+        {"driver_id": "DRV-GZB-101", "driver_name": "R. K. Sharma (Loco Pilot)", "loco_no": "WAP-7 30214", "home_depot": "GZB", "linked_train_no": "20958 (Vande Bharat)", "duty_hours_remaining": 6.5, "status": "ON_DUTY"},
+        {"driver_id": "DRV-GZB-104", "driver_name": "Amitabh Verma (Loco Pilot)", "loco_no": "WAP-7 30488", "home_depot": "GZB", "linked_train_no": "12424 (Rajdhani Exp)", "duty_hours_remaining": 7.2, "status": "ON_DUTY"},
+        {"driver_id": "DRV-ALJN-201", "driver_name": "S. P. Singh (Sr. Loco Pilot)", "loco_no": "WAP-5 30012", "home_depot": "ALJN", "linked_train_no": "12004 (Shatabdi Exp)", "duty_hours_remaining": 5.5, "status": "ON_DUTY"},
+        {"driver_id": "DRV-GZB-112", "driver_name": "V. K. Yadav (Loco Pilot)", "loco_no": "WAP-4 22560", "home_depot": "GZB", "linked_train_no": "14218 (Unchahar Exp)", "duty_hours_remaining": 4.8, "status": "ON_DUTY"},
+        {"driver_id": "DRV-GZB-118", "driver_name": "Harpreet Singh (MEMU Pilot)", "loco_no": "MEMU-3011", "home_depot": "GZB", "linked_train_no": "64102 (MEMU)", "duty_hours_remaining": 3.2, "status": "ON_DUTY"},
+        {"driver_id": "DRV-KRJ-301", "driver_name": "D. K. Yadav (Tamper Operator)", "loco_no": "CSM-301", "home_depot": "KRJ", "linked_train_no": "CSM-1 (Plasser Tamper)", "duty_hours_remaining": 4.0, "status": "ON_DUTY"},
+        {"driver_id": "DRV-GZB-305", "driver_name": "Rajesh Kumar (BCM Operator)", "loco_no": "BCM-502", "home_depot": "GZB", "linked_train_no": "BCM-2 (Ballast Cleaner)", "duty_hours_remaining": 1.8, "status": "ON_DUTY"},
+        {"driver_id": "DRV-DER-309", "driver_name": "M. K. Gupta (TRD Tower Car Op)", "loco_no": "TW-4001", "home_depot": "DER", "linked_train_no": "TOWER-WAGON-1 (TRD)", "duty_hours_remaining": 8.0, "status": "ON_DUTY"},
+        {"driver_id": "DRV-ALJN-312", "driver_name": "S. K. Mishra (Turnout Tamper Op)", "loco_no": "UNM-903", "home_depot": "ALJN", "linked_train_no": "UNIMAT-3 (Turnout)", "duty_hours_remaining": 1.2, "status": "ON_DUTY"}
+    ]
+    return sample_crew
 
 if __name__ == '__main__':
     print(json.dumps(fetch_live(), indent=2)[:3000])
