@@ -99,13 +99,18 @@ function renderTable() {
         else if (d.status === 'DEFERRED') statusBadge = 'badge-red';
         else statusBadge = 'badge-grey';
 
+        const durVal = d.duration_min ?? d.duration_minutes ?? d.duration;
+        const durationDisplay = (durVal !== null && durVal !== undefined && durVal > 0)
+            ? `<span style="font-family:var(--font-mono);font-weight:600;">${durVal} min</span>`
+            : `<span class="badge badge-grey" style="font-size:11px;letter-spacing:0.02em;text-transform:none;font-weight:500;">Not yet defined</span>`;
+
         tr.innerHTML = `
             <td><div style="font-family:var(--font-mono);color:var(--amber)">${d.demand_id || d.id}</div></td>
             <td><span class="badge ${d.department === 'CIVIL' ? 'badge-grey' : (d.department === 'TRD' ? 'badge-amber' : 'badge-blue')}">${d.department}</span></td>
             <td>${d.km_start} - ${d.km_end}</td>
             <td>${d.work_nature || 'Maintenance'}</td>
-            <td>${d.duration_minutes || d.duration} min</td>
-            <td>${(d.machines_required||[]).join(', ') || 'N/A'}</td>
+            <td>${durationDisplay}</td>
+            <td>${(d.machines_required||[]).join(', ') || d.machine || 'N/A'}</td>
             <td><span class="badge ${statusBadge}">${d.status || 'PENDING'}</span></td>
             <td class="drm-only">
                 <button class="btn-small btn-action-green" onclick="handleDrmAction('${d.demand_id}', 'approve')">Approve</button>
@@ -236,4 +241,5 @@ function handleDrmAction(id, action) {
 init();
 </script>
 </body>
+</html>
 </html>
